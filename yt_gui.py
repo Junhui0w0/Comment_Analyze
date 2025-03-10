@@ -302,6 +302,7 @@ class YouTubeSearchApp(QMainWindow):
 
             except Exception as e:
                 error_label = QLabel(f"Failed to fetch comments for {video_data.get('title', 'No Title')}: {str(e)}")
+                print(f'[디버깅-Erorr]: {str(e)}')
                 error_label.setStyleSheet("color: red;")
                 scroll_layout.addWidget(error_label)
 
