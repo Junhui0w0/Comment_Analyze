@@ -1,4 +1,6 @@
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+#=============================================#
+# 감정 분석 및 주요 키워드 추출 함수from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 from gensim import corpora
 from gensim.models import LdaModel
 import spacy

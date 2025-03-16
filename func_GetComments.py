@@ -1,12 +1,16 @@
 from googleapiclient.discovery import build
 from datetime import datetime, timedelta, timezone 
 
-with open('api_key.txt', 'r', encoding='UTF-8') as f: #api키 추출 (보안)
+# api 키 추출
+with open('api_key.txt', 'r', encoding='UTF-8') as f:
     api_key = f.read() 
 
-youtube = build('youtube', 'v3', developerKey=api_key) #youtube api 호출
 
-# FUNC_계정 생성일 반환
+#youtube api 호출 -> 댓글 추출에 필요한 api
+youtube = build('youtube', 'v3', developerKey=api_key)
+
+
+# FUNC_계정 생성일 반환 -> 댓글 필터링
 def parse_youtube_date(date_str):
     # 1. '+'로 끝나는 경우 제거 (예: '2021-07-11T10:02:32.66107+')
     if date_str.endswith('+'):
@@ -26,7 +30,7 @@ def parse_youtube_date(date_str):
     
     return datetime.fromisoformat(date_str).astimezone(timezone.utc)
 
-# FUNC_6개월 이내 계정 생성 여부
+# FUNC_6개월 이내 계정 생성 여부 -> 댓글 필터링
 def filter_recent_accounts(comments):
     current_date = datetime.now(timezone.utc)
     cutoff_date = current_date - timedelta(days=180)
@@ -56,51 +60,7 @@ def filter_recent_accounts(comments):
         ).date() < cutoff_date.date()
     ]
 
-
-# def get_top_comments(video_id, top_n=10):
-#     all_comments = []
-#     next_page_token = None
-
-#     while True:
-#         response = youtube.commentThreads().list(
-#             part='snippet',
-#             videoId=video_id,
-#             maxResults=50,
-#             order='relevance',
-#             textFormat='plainText',
-#             pageToken=next_page_token
-#         ).execute()
-
-#         batch = [
-#             {
-#                 'text': item['snippet']['topLevelComment']['snippet']['textDisplay'],
-#                 'likes': item['snippet']['topLevelComment']['snippet'].get('likeCount', 0),
-#                 'author_id': item['snippet']['topLevelComment']['snippet'].get('authorChannelId', {}).get('value')
-#             }
-#             for item in response['items']
-#         ]
-#         all_comments.extend(batch)
-
-#         next_page_token = response.get('nextPageToken')
-#         if not next_page_token or len(all_comments) >= 500:
-#             break
-
-#     print(f'All Comments: {all_comments}')
-#     # 좋아요 순 정렬 (likes 값이 숫자인지 확인)
-#     sorted_comments = sorted(
-#         all_comments,
-#         key=lambda x: int(x['likes']) if isinstance(x['likes'], (int, float)) else 0,
-#         reverse=True
-#     )
-
-#     # 상위 N개 댓글 반환
-#     return [
-#         f"{c['text']} (좋아요: {c['likes']})"
-#         for idx, c in enumerate(sorted_comments[:top_n])
-#     ]
-
-
-
+# 좋아요 갯수 top 10 리스트 추출
 def get_top_comments(video_id, top_n=10):
     all_comments = []
     next_page_token = None
@@ -138,6 +98,7 @@ def get_top_comments(video_id, top_n=10):
 
     # 좋아요 순 정렬
     sorted_comments = sorted(all_comments, key=lambda x: x['likes'], reverse=True)
+    print(f'[디버깅_Func] get_top_commtents: 좋아요 순으로 정렬된 댓글 lst \n {sorted_comments}')
 
     # 상위 N개 댓글 반환
     return [

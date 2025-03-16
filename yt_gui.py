@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from func_GetComments import get_top_comments
 from func_emotion import analyze_sentiments, extract_topics, analyze_video_comments
+from func_output_txt import extract_from_txt, output_by_txt
 
 # YouTube API Key
 with open("api_key.txt", "r") as f:
@@ -224,6 +225,10 @@ class YouTubeSearchApp(QMainWindow):
             try:
                 # 댓글 수집 (좋아요 순위 TOP 10)
                 comments = get_top_comments(video_id, top_n=100)  # 상위 100개 댓글 수집
+                print(f'\n[디버깅-yt_gui.py] get_top_comments에서 추출된 댓글\n {comments}')
+                print('\n[디버깅-yt_gui.py] analyze_comments에서 추출된 제목: ', video_data.get('title', 'No Title'))
+                print(f'\n[디버깅-yt_gui.py] analyze_comments에서 추출된 video_id: {video_id}')
+                output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
 
                 # 감정 분석 및 토픽 모델링 수행
                 sentiment_results, topics = analyze_video_comments(comments)
