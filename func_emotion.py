@@ -1,6 +1,5 @@
-#=============================================#
-# 감정 분석 및 주요 키워드 추출 함수from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
+#===============================================================================================================#
+# 감정 분석 및 주요 키워드 추출 함수
 from gensim import corpora
 from gensim.models import LdaModel
 import spacy
@@ -9,7 +8,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
 
 def extract_topics(comments, num_topics=3, num_words=5):
-    """댓글에서 주요 토픽 추출"""
     nlp = spacy.load("en_core_web_sm")
     processed_comments = []
 
@@ -31,7 +29,6 @@ def extract_topics(comments, num_topics=3, num_words=5):
     return topics
 
 def analyze_video_comments(comments):
-    """댓글 데이터를 받아 감정 분석 및 토픽 모델링 결과 반환"""
     # 댓글 텍스트만 추출 (좋아요 수 제거)
     comment_texts = [c.split("(")[0].strip() for c in comments]
 

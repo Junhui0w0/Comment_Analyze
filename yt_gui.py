@@ -13,7 +13,6 @@ with open("api_key.txt", "r") as f:
 
 
 class ClickableLabel(QLabel):
-    """클릭 가능한 QLabel"""
     clicked = pyqtSignal()  # 클릭 시 신호 발생
 
     def __init__(self, parent=None):
@@ -79,7 +78,6 @@ class VideoWidget(QWidget):
         self.setLayout(layout)
 
     def toggle_selection(self):
-        """썸네일 클릭 시 선택/해제 상태를 토글"""
         parent_app = self.window()  # YouTubeSearchApp 참조
         if not isinstance(parent_app, YouTubeSearchApp):
             return
@@ -164,7 +162,7 @@ class YouTubeSearchApp(QMainWindow):
             'q': query,
             'key': YOUTUBE_API_KEY,
             'type': 'video',
-            'maxResults': 10
+            'maxResults': 10 #검색할 동영상 수
         }
         
         try:
@@ -193,17 +191,14 @@ class YouTubeSearchApp(QMainWindow):
 
 
     def add_to_selected(self, video_widget):
-        """선택된 동영상을 리스트에 추가"""
         if video_widget not in self.selected_videos:
             self.selected_videos.append(video_widget)
 
     def remove_from_selected(self, video_widget):
-        """선택 해제된 동영상을 리스트에서 제거"""
         if video_widget in self.selected_videos:
             self.selected_videos.remove(video_widget)
 
     def analyze_comments(self, parent_window):
-        """Analyze 버튼 클릭 시 선택된 동영상의 댓글 분석"""
         analysis_window = QDialog(parent_window)
         analysis_window.setWindowTitle("Comment Analysis")
         analysis_window.resize(600, 800)
@@ -292,11 +287,12 @@ class YouTubeSearchApp(QMainWindow):
                     comment_box = QGroupBox(f"{idx}.")
                     comment_layout = QVBoxLayout()
 
-                    content_label = QLabel(comment.split("(")[0].strip())  # 댓글 내용
+                    content_label = QLabel(comment.split("|")[0].strip())  # 댓글 내용
                     content_label.setWordWrap(True)
                     content_label.setStyleSheet("font-size: 14px; color: #404040;")
 
-                    likes_label = QLabel(comment.split("(")[1].strip())  # 좋아요 수
+                    likes_count = '좋아요 수: ' + comment.split("|")[1].strip()
+                    likes_label = QLabel(likes_count)  # 좋아요 수
                     likes_label.setStyleSheet("font-size: 12px; color: #606060; margin-top: 5px;")
 
                     comment_layout.addWidget(content_label)

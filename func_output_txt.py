@@ -1,3 +1,4 @@
+#===============================================================================================================#
 from pathlib import Path
 import datetime
 
@@ -5,7 +6,7 @@ dt = datetime.datetime.now()
 current_date = f'{dt.year}{dt.month}{dt.day}_'
 folder_path = Path.cwd() / "Comment_Extract"
 
-
+# txt 파일로 출력
 def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내용
     try:
         # 폴더 생성 (없을 경우)
@@ -17,11 +18,11 @@ def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내
 
         # 파일 생성 및 내용 작성
         with open(file_path, "a", encoding="utf-8") as file:  # 'a' 모드 사용
-            file.write('='*150)
-            file.write('\n')
-            file.write(f"영상 제목: {file_title} \n")
-            file.write('='*150)
-            file.write('\n\n')
+            # file.write('='*150)
+            # file.write('\n')
+            # file.write(f"영상 제목: {file_title} \n")
+            # file.write('='*150)
+            # file.write('\n\n')
 
             for item in file_contents:
                 txt = str(item).replace('\n', ' ') + '\n'
@@ -33,7 +34,7 @@ def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내
         print("[디버깅] out_by_txt 에러: ", e)
         return False
 
-
+# txt 파일 내용을 출력
 def extract_from_txt(file_name):
     all_items = list(folder_path.glob("*"))
     

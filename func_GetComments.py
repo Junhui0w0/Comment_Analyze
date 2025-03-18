@@ -102,6 +102,6 @@ def get_top_comments(video_id, top_n=10):
 
     # 상위 N개 댓글 반환
     return [
-        f"{c['text']} (좋아요: {c['likes']})"
+        f"{c['text']} | {c['likes']}"
         for idx, c in enumerate(sorted_comments[:top_n])
     ]
