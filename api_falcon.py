@@ -33,6 +33,7 @@ tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-7b-instruct")
 # )
 
 try:
+    print('local 파일 사용')
     # 로컬 캐시에서 먼저 시도
     model = AutoModelForCausalLM.from_pretrained(
         "tiiuae/falcon-7b-instruct",
@@ -43,6 +44,7 @@ try:
         quantization_config=quant_config
     )
 except OSError:
+    print(f"local에 존재X")
     # 캐시 없을 경우 다운로드
     model = AutoModelForCausalLM.from_pretrained(
         "tiiuae/falcon-7b-instruct",
@@ -82,57 +84,69 @@ def analyze_comments(file_path: str) -> dict:
         print(f'추출된 comments_list: {comments}')
 
         # 최적화된 프롬프트
-        prompt = """[INST] <<SYS>>
-        **반드시 지켜야 할 규칙**
-        1. 출력 형식 (반드시 준수)
-        {{ 
-            "맛집": [{{"이름":"...", "이유":"..."}}], 
+        prompt_template = """[INST] <<SYS>>
+        **반드시 지켜야 할 규칙**: 무조건 JSON만 생성! HTML/JS 코드 금지!
+        1. 출력 형식 (반드시 준수):
+        {{
+            "맛집": [{{"이름":"...", "이유":"..."}}],
             "명소": [{{"장소":"...", "특징":"..."}}],
             "팁": ["..."]
         }}
-        2. 가중치: 좋아요 10당 +★1개 (예: 25좋아요 → ★★)
-
-        **금지 사항**
-        - JSON 외 추가 설명 절대 금지
-        - 영어/일본어 사용 금지
-        - 마크다운 사용 금지
-
         <</SYS>>
         {comments}
-        [/INST]""".format()
+        [/INST]"""
         
         # 배치 처리 (2개씩)
         results = []
         for i in range(0, len(comments), 2): #0 ~ 99 (100회) -> 0 2 4 6 8 10 ... 98
             print(f'index = {i}')
             batch = comments[i:i+2]
+            clean_comments = "\n".join([c['text'] for c in batch])  # 여기서 선언!
+
             BATCH_SIZE = 2  # 상수 정의
-            formatted_prompt = prompt.format(
-                comments="\n".join([c['text'] for c in batch]),  # Likes 정보 제거
-                batch_size=BATCH_SIZE  # 명시적 전달
-            )
+            formatted_prompt = prompt_template.format(comments=clean_comments)
+
+            print("\n" + "="*50 + " PROMPT START " + "="*50)
+            print(formatted_prompt)
+            print("="*50 + " PROMPT END " + "="*50 + "\n")
             
             # 메모리 효율적 생성
             output = analyzer(
                 formatted_prompt,
-                max_new_tokens=512,
+                max_new_tokens=128,
                 temperature=0.3,
                 do_sample=True,
                 pad_token_id=tokenizer.eos_token_id,
                 return_full_text=False
             )
+
+
+            print("\n" + "="*50 + " RAW OUTPUT START " + "="*50)
+            print(output[0]['generated_text'])
+            print("="*50 + " RAW OUTPUT END " + "="*50 + "\n")
             
+
             # JSON 처리 부분 전체 교체
             import regex  # 표준 re 대신 regex 모듈 사용
 
             raw_text = output[0]['generated_text']
+            print(f'output = {output}')
 
             # JavaScript 키워드 제거
+            # filtered_text = re.sub(
+            #     r'\b(useState|React|=>|import)\b', 
+            #     '[INVALID]', 
+            #     raw_text
+            # )
+
             filtered_text = re.sub(
-                r'\b(useState|React|=>|import)\b', 
-                '[INVALID]', 
-                raw_text
+                r'[^\x00-\x7F가-힣]',  # 한글/영문/기본 ASCII만 허용
+                '', 
+                filtered_text
             )
+
+            filtered_text = filtered_text.encode('utf-8', 'replace').decode('utf-8')
+            print(f'filtered_text : {filtered_text}')
 
 
             try:
@@ -153,10 +167,19 @@ def analyze_comments(file_path: str) -> dict:
                         .replace(r'\"', '"')
                         .replace(r"\'", "'")
                     )
+
+
+                    # JSON 처리 부분에 추가
+                    json_str = json_match.group(1)
+                    print("\n" + "="*50 + " JSON CANDIDATE START " + "="*50)
+                    print(f"Extracted JSON String:\n{json_str}")
+                    print("="*50 + " JSON CANDIDATE END " + "="*50 + "\n")
+
                     
                     # 3. JSON 구조 강제 정렬
                     json_str = re.sub(r'//.*?\\n', '', json_str)  # 주석 제거
                     json_str = json_str.replace('True', 'true').replace('False', 'false')  # 부울값 정규화
+                    
                 
                 # 4. 키 존재 여부 검증 강화
                 # 키 검증 강화
@@ -171,10 +194,16 @@ def analyze_comments(file_path: str) -> dict:
                         raise TypeError(f"{key} 타입 불일치: {type(result[key])}")
 
                 try:
-                    result = json.loads(json_str, strict=False)
-                        
-                except json.JSONDecodeError as e:
-                    print(f"JSON 문법 오류: {e.doc[e.pos-20:e.pos+20]}")  # 오류 위치 하이라이트
+                    result = json.loads(json_str)  # 정상 파싱
+                except Exception as e:
+                    result = None  # 실패 시 기본값 설정
+                    print(f"JSON 파싱 실패: {str(e)}")
+
+                # 결과 처리
+                if result:
+                    results.append(result)
+                else:
+                    print("유효하지 않은 결과 건너뜀")
 
             except Exception as e:
                 print(f"심층 오류: {str(e)}")
