@@ -13,7 +13,7 @@ def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내
         folder_path.mkdir(parents=True, exist_ok=True)
 
         # 파일 경로 지정
-        file_name = current_date + file_name
+        file_name = current_date + file_name +'.txt'
         file_path = folder_path / file_name
 
         # 파일 생성 및 내용 작성
