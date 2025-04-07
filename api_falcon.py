@@ -15,10 +15,10 @@ def extract_json_from_text(text: str) -> dict:
     """개선된 JSON 추출 함수"""
     try:
         # 1. 유니코드 복원 (깨진 문자열 처리)
-        try:
-            text = text.encode('latin1').decode('utf-8')
-        except UnicodeDecodeError:
-            print("유니코드 디코딩 실패, 원본 텍스트 사용")
+        # try:
+        #     text = text.encode('latin1').decode('utf-8')
+        # except UnicodeDecodeError:
+        #     print("유니코드 디코딩 실패, 원본 텍스트 사용")
         
         # 2. 싱글쿼터 -> 더블쿼터 변환
         text = text.replace("'", '"')
@@ -133,23 +133,17 @@ def analyze_comments(file_path: str) -> dict:
     comments = sorted(comments, key=lambda x: x["likes"], reverse=True)[:50]
     print(f'추출된 comments_list: {comments}')
 
-    prompt_template = """[INST] <<SYS>>
-    **반드시 지켜야 할 규칙**:
-    1. 키와 문자열 값에 반드시 큰따옴표(") 사용
-    2. JSON 형식만 출력
-    3. 주석/추가 텍스트 금지
-    <</SYS>>
+    prompt_template = """
+    아래 댓글을 참고해서 '맛집', '명소', '팁' 정보를 JSON 형식으로 추출하세요.
 
-    아래 댓글 분석:
-    1. {comment1}
-    2. {comment2}
+    규칙:
+    1. 반드시 JSON만 출력 (주석/설명/텍스트 금지)
+    2. 문자열 값은 반드시 큰따옴표(") 사용
+    3. 없다고 판단되는 정보는 'N/A' 로 표기
 
-    JSON 출력 예시:
-    {{
-        "맛집": [{{"이름": "예시가게", "이유": "맛있음"}}],
-        "명소": [{{"장소": "예시장소", "특징": "아름다움"}}],
-        "팁": ["예시팁"]
-    }}[/INST]"""
+    댓글 1: {comment1}
+    댓글 2: {comment2}
+    """
     
     # 배치 처리 (2개씩)
     results = []
@@ -169,9 +163,10 @@ def analyze_comments(file_path: str) -> dict:
         output = analyzer(
             formatted_prompt,
             max_new_tokens=512,  # ⇠ 토큰 길이 증가
-            temperature=0.3,     # ⇠ 창의성 감소
+            temperature=0.1,     # ⇠ 창의성 감소
             num_return_sequences=1,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
+            # repitition_penalty = 1.0
         )
 
         print("\n" + "="*50 + " RAW OUTPUT START " + "="*50)
@@ -212,22 +207,22 @@ def analyze_comments(file_path: str) -> dict:
 
 
         filtered_text = str(raw_text)
-        filtered_text = re.sub(
-            r'[^\x00-\x7F가-힣]',  # 한글/영문/기본 ASCII만 허용
-            '', 
-            filtered_text
-        )
+        # filtered_text = re.sub(
+        #     r'[^\x00-\x7F가-힣]',  # 한글/영문/기본 ASCII만 허용
+        #     '', 
+        #     filtered_text
+        # )
 
         filtered_text = filtered_text.encode('utf-8', 'replace').decode('utf-8')
 
         # JSON 파싱
-        data = json.loads(filtered_text)
+        # data = json.loads(filtered_text)
 
         # 2D 배열 생성
         result = []
 
         # 맛집 처리
-        for item in data["맛집"]:
+        for item in json_data["맛집"]:
             row = [
                 item["이름"],
                 item["이유"],
@@ -237,7 +232,7 @@ def analyze_comments(file_path: str) -> dict:
             result.append(row)
 
         # 명소 처리 
-        for item in data["명소"]:
+        for item in json_data["명소"]:
             row = [
                 "",  # 맛집 칸 비움
                 "",
@@ -247,7 +242,7 @@ def analyze_comments(file_path: str) -> dict:
             result.append(row)
 
         # 팁 처리
-        for tip in data["팁"]:
+        for tip in json_data["팁"]:
             row = ["", "", "", tip]
             result.append(row)
 
@@ -289,25 +284,22 @@ def analyze_comments(file_path: str) -> dict:
         
         # 4. 키 존재 여부 검증 강화
         # 키 검증 강화
-        REQUIRED_STRUCTURE = {
-            "맛집": list,
-            "명소": list,
-            "팁": list
-        }
+        # REQUIRED_STRUCTURE = {
+        #     "맛집": list,
+        #     "명소": list,
+        #     "팁": list
+        # }
 
-        for key, dtype in REQUIRED_STRUCTURE.items():
-            if not isinstance(result.get(key), dtype):
-                raise TypeError(f"{key} 타입 불일치: {type(result[key])}")
-
-
-        result = json.loads(json_str)  # 정상 파싱
+        # for key, dtype in REQUIRED_STRUCTURE.items():
+        #     if not isinstance(result.get(key), dtype):
+        #         raise TypeError(f"{key} 타입 불일치: {type(result[key])}")
 
 
-        # 결과 처리
-        if result:
-            results.append(result)
-        else:
-            print("유효하지 않은 결과 건너뜀")
+        json_str = extract_json_from_text(raw_text)
+        if not json_str:
+            continue
+
+        results.append(result)
 
 
 
