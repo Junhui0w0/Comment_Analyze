@@ -38,6 +38,9 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
             3. **여행 팁** (유용한 팁, 주의사항, 추천 일정 등)
 
             반드시 댓글에 실제로 언급된 정보만 기반으로 작성하고, 내용이 없으면 "없음"이라고 명시하세요.
+            맛집을 작성할 때 '가게명-대표메뉴명' 형식으로 작성하세요.
+            대표메뉴명은 댓글이 아닌, 인터넷에서 '가게명' 을 검색한 뒤, 최상단 메뉴 하나를 작성해주세요.
+            여행 팁 부분에는 여행과 관련된 내용만 작성하세요.
             여행 팁 부분에는 해당 지역을 방문하면서 얻은 사람들의 경험을 요약해서 작성하세요.
             여행 팁 부분에 의상이나 패션과 관련된 내용은 작성하지 마세요.
             
@@ -57,7 +60,7 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
                 {"role": "system", "content": "당신은 여행 정보를 요약해주는 한국어 AI입니다."},
                 {"role": "user", "content": prompt.strip()}
             ],
-            "temperature": 0.3,
+            "temperature": 0.4,
             "max_tokens": 800
         }
 
@@ -82,14 +85,17 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
 
     return results
 
-# 실행 예시
-file_path = "2025410_SLlN7ZgVT_w.txt"
-summaries = analyze_comments_lmstudio_text(file_path)
 
-# 최종 전체 출력
-print("\n\n [전체 요약 결과]")
-for idx, summary in enumerate(summaries, 1):
-    print(f"\n--- 묶음 {idx} ---\n{summary}")
+
+# # 실행 예시
+# file_path = "2025410_SLlN7ZgVT_w.txt"
+# summaries = analyze_comments_lmstudio_text(file_path)
+
+
+# # 최종 전체 출력
+# print("\n\n [전체 요약 결과]")
+# for idx, summary in enumerate(summaries, 1):
+#     print(f"\n--- 묶음 {idx} ---\n{summary}")
 
 
 
