@@ -6,11 +6,16 @@ from PyQt5.QtGui import *
 from func_GetComments import get_top_comments
 from func_emotion import analyze_sentiments, extract_topics, analyze_video_comments
 from func_output_txt import extract_from_txt, output_by_txt
+from ai_openchat_chat import analyze_comments_lmstudio_text
+
+file_path = ''
 
 # YouTube API Key
 with open("api_key.txt", "r") as f:
     YOUTUBE_API_KEY = f.read()
 
+def get_filename():
+    return file_path
 
 class ClickableLabel(QLabel):
     clicked = pyqtSignal()  # 클릭 시 신호 발생
@@ -223,7 +228,14 @@ class YouTubeSearchApp(QMainWindow):
                 print(f'\n[디버깅-yt_gui.py] get_top_comments에서 추출된 댓글\n {comments}')
                 print('\n[디버깅-yt_gui.py] analyze_comments에서 추출된 제목: ', video_data.get('title', 'No Title'))
                 print(f'\n[디버깅-yt_gui.py] analyze_comments에서 추출된 video_id: {video_id}')
-                output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
+                file_path = output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
+
+                summaries = analyze_comments_lmstudio_text(file_path)
+                
+                # 최종 전체 출력
+                print("\n\n [전체 요약 결과]")
+                for idx, summary in enumerate(summaries, 1):
+                    print(f"\n--- 묶음 {idx} ---\n{summary}")
 
                 # 감정 분석 및 토픽 모델링 수행
                 sentiment_results, topics = analyze_video_comments(comments)
