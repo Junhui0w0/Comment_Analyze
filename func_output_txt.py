@@ -15,6 +15,7 @@ def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내
         # 파일 경로 지정
         file_name = current_date + file_name +'.txt'
         file_path = folder_path / file_name
+        print(f'file_path: {file_path}')
 
         # 파일 생성 및 내용 작성
         with open(file_path, "a", encoding="utf-8") as file:  # 'a' 모드 사용
@@ -28,7 +29,7 @@ def output_by_txt(file_name, file_contents, file_title): #파일명 / 파일 내
                 txt = str(item).replace('\n', ' ') + '\n'
                 file.write(txt)  # 줄바꿈 추가
 
-        return True
+        return file_path
     
     except Exception as e:
         print("[디버깅] out_by_txt 에러: ", e)
