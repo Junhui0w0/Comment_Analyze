@@ -128,13 +128,13 @@ def extract_places_from_summary(summary_text):
     return list(places)
 
 
-REGION = "부산"
+REGION = "부산" 
 
 # Google Custom Search API KEY
 with open("api_search_place_info.txt", "r") as f:
     API_KEY = f.read()
 
-with open("api_search_place_info.txt", "r") as f:
+with open("api_search_engine_key.txt", "r") as f:
     CSE_ID = f.read()
 
 place_category = {}

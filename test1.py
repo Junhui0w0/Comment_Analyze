@@ -15,6 +15,7 @@ def classify_place_google(place_name, region, api_key, cse_id):
         res = requests.get(url, params=params)
         data = res.json()
         if "items" not in data:
+            print('\nitesm not in data')
             return "불명"
 
         content = " ".join(item["snippet"] for item in data["items"])
@@ -29,8 +30,10 @@ def classify_place_google(place_name, region, api_key, cse_id):
         elif place_score > food_score:
             return "명소"
         else:
+            print('\nplace_scoe equals food_score')
             return "불명"
     except:
+        print('\nException Error')
         return "불명"
 
 
@@ -54,18 +57,16 @@ REGION = "부산"
 with open("api_search_place_info.txt", "r") as f:
     API_KEY = f.read()
 
-with open("api_search_place_info.txt", "r") as f:
+with open("api_search_engine_key.txt", "r") as f:
     CSE_ID = f.read()
 
+test_place = ['이재모 피자', '톤쇼우', '대저생태공원', '태종대', '황령산벚꽃길', '옥계관']
 place_category = {}
 
-for summary in summaries:
-    places = extract_places_from_summary(summary)
-    for place in places:
-        if place not in place_category:
-            category = classify_place_google(place, REGION, API_KEY, CSE_ID)
-            place_category[place] = category
-
+for place in test_place:
+    if place not in place_category:
+        category = classify_place_google(place, REGION, API_KEY, CSE_ID)
+        place_category[place] = category
 
 print("\n\n[장소별 분류 결과]")
 for place, category in place_category.items():
