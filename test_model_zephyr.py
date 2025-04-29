@@ -101,6 +101,8 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
             response.raise_for_status()
             result_text = response.json()["choices"][0]["message"]["content"].strip()
             result_text = clean_summary_output(result_text)
+
+            print(f'\n[Type] result_text: {type(result_text)}')
             print(f"\n [요약 결과 - 묶음 {i}]:\n{result_text}\n")
             results.append(result_text)
 
@@ -154,22 +156,28 @@ def extract_places_from_summary(summary_text):
 
 
 def rewrite_summary(summary_text):
+    next_sign = input('진행 (Y/N): ')
     url = "http://localhost:1234/v1/chat/completions"
 
     prompt = f"""
-당신은 여행 정보를 친절하고 자연스럽게 **한국어**로 소개하는 작가입니다.
+당신은 여행 정보를 친절하고 자연스럽게 한국어로 소개하는 작가입니다.
 
-아래 정보를 참고하여 **한국어로 부드럽게** 풀어서 글을 작성해 주세요.
-- 맛집과 명소는 추천하듯 자연스럽게 소개하세요.
+아래 정보를 참고하여 부드럽고 따뜻한 문체로 자연스럽게 글을 작성해 주세요.
+
+**지침:**
+- 맛집과 명소는 추천하듯 자연스럽게 문장으로 풀어 주세요.
 - 팁은 여행자의 입장에서 유용하게 느껴질 수 있도록 부드럽게 조언해 주세요.
-- 전체적으로 자연스러운 서술형 문장으로 연결해 주세요.
+- 전체 글은 **자연스럽게 연결된 서술형 문장**으로 작성하세요.
+- **절대로 1., 2., 3. 처럼 번호를 매기거나 목록 형태로 나열하지 마세요.**
 - 추가적인 창작은 하지 말고, 주어진 정보만 사용하세요.
+- 문단 구성을 자연스럽게 하되, 필요하면 2~3문단 정도로 나누어도 됩니다.
 
 ---
 주어진 요약:
 {summary_text}
 ---
-**한국어로 친절하게 작성한 소개글:**
+한국어로 자연스럽고 부드럽게 작성한 소개글:
+
 """
 
     payload = {
@@ -230,7 +238,11 @@ def summary_comments(filepath):
         print(f"\n--- 묶음 {idx} ---\n{summary}")
 
     print(f'\n\n\n================[rewriting]==================')
-    print(rewrite_summary(corrected_summaries))
+    str_data = ''
+    for idx, summary in enumerate(corrected_summaries, 1):
+        str_data += summary
+
+    print(rewrite_summary(str_data))
 
     return True
     
