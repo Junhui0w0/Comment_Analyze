@@ -156,6 +156,7 @@ def get_region(title):
 def chunk_comments(comments, chunk_size=20):
     return [comments[i:i + chunk_size] for i in range(0, len(comments), chunk_size)]
 
+
 def analyze_comments_lmstudio_text(file_path: str) -> list:
     url = "http://localhost:1234/v1/chat/completions"
 
@@ -170,9 +171,8 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
                     "likes": int(likes.strip())
                 })
 
-    # 좋아요 수 기준 정렬 후 상위 60개 (20개씩 3묶음 예시)
+    # 좋아요 수 기준 정렬 후 상위 60개
     comments = sorted(comments, key=lambda x: x["likes"], reverse=True)[:60]
-
     comment_chunks = chunk_comments(comments, 10)
 
     results = []
@@ -181,39 +181,38 @@ def analyze_comments_lmstudio_text(file_path: str) -> list:
         combined_comments = "\n".join([f"- {c['text']}" for c in chunk])
 
         prompt = f"""
-        당신은 유튜브 여행 영상의 댓글을 분석하여 유용한 여행 정보를 요약하는 AI입니다.
+        당신은 유튜브 여행 영상의 댓글을 분석하여 유용한 여행 정보를 요약하는 한국어 AI입니다.
 
-        아래 댓글을 분석해, 반드시 다음과 같은 형식으로 출력하세요.
+        아래 댓글을 읽고, 반드시 댓글에 실제로 등장한 정보만 기반으로 다음과 같은 형식으로 요약하세요.
 
-        **출력 형식**
-        - 맛집: 장소명1, 장소명2, 장소명3 (가게명만, 쉼표(,)로 구분)
-        - 명소: 장소명1, 장소명2, 장소명3 (지명만, 쉼표(,)로 구분)
-        - 팁: 여행에 도움이 되는 문장 (복수 문장 가능)
+        출력 형식:
+        맛집: (댓글에 등장한 가게명만 쉼표로 나열, 없으면 '없음')
+        명소: (댓글에 등장한 장소명만 쉼표로 나열, 없으면 '없음')
+        팁: (댓글에 등장한 여행 관련 조언만 최대 3줄 이내로 작성, 없으면 '없음')
 
-        **지침**
-        - 맛집과 명소는 반드시 "가게명/장소명"만 나열하고, 문장 작성 금지.
-        - 문장 없이, 쉼표(,)로만 구분하세요.
-        - 해당 정보가 없으면 '없음'이라고만 작성하세요.
-        - 반드시 항목 이름(맛집:, 명소:, 팁:)을 포함하세요.
+        **지침:**
+        - 댓글에 등장하지 않은 정보는 절대로 추가하지 마세요.
+        - '팁' 항목은 여행 계획, 교통, 숙소, 일정 관련 조언만 작성하세요.
+        - 감정 표현, 개인적인 의견(예: "결혼해주세요", "멋있어요")은 절대 작성하지 마세요.
+        - 팁은 반드시 짧게 1~3줄 이내로 요약하세요.
+        - 각 항목 이름(맛집:, 명소:, 팁:)은 반드시 출력에 포함하세요.
 
         ---
         댓글 목록:
         {combined_comments}
         ---
-        요약:
+        요약 시작:
         맛집:
         명소:
         팁:
         """
 
-
-
         payload = {
             "messages": [
-                {"role": "system", "content": "당신은 여행 정보를 요약해주는 한국어 AI입니다."},
+                {"role": "system", "content": "당신은 여행 정보를 요약하는 한국어 AI입니다."},
                 {"role": "user", "content": prompt.strip()}
             ],
-            "temperature": 0.4,
+            "temperature": 0.3,
             "max_tokens": 800
         }
 
@@ -324,6 +323,7 @@ def summary_comments(filepath):
 
     return True
 
+summary_comments('2025410_SLlN7ZgVT_w.txt')
 
 
 
