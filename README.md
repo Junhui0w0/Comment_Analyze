@@ -97,5 +97,5 @@ Google Custom Search API를 사용 -> 장소 구분 (가게 or 관광지) \
 기존 기능은 유지한 채로, 모델 변경 및 시스템 재구성 수행 (Zephyr -> Llama) \
 -> 정해진 프롬프트대로 출력되고, 완성도가 올라감 \
 -> 기존 장소(명소, 맛집)을 google custom search로 구분했는데, kakao 지도 api 활용 고려 \
--> Google Custom Search는 횟수 제한 존재, KAKAO API는 제한 없음 (kakao로 변경)
+-> Google Custom Search는 횟수 제한 존재, KAKAO API는 제한 없음 (kakao로 변경) \
 [❗] 2차 프롬프트 결과 다듬기
