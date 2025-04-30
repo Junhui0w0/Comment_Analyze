@@ -1,9 +1,8 @@
-def func():
-    for i in range(10):
-        if i == 6:
-            return i
-        print('hi')
-    return 100
+a = [1,2,3]
+b = [10,20,30]
 
-a = func()
-print(a)
+c = []
+c.extend(a)
+c.extend(b)
+print(c)
+print(a,b)
