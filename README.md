@@ -7,7 +7,7 @@
 
 ----
 
-## 2025-03-10 댓글 분석 모델 - KoBERT Distilbert##
+## 2025-03-10 댓글 분석 모델 - KoBERT Distilbert ##
 캡스톤디자인2 프로젝트 주제로 선정 \
 선택한 유튜브 동영상의 댓글 분석 \
 가중치: 댓글의 좋아요 수, 대댓글 수, 특정 키워드 반복 수 \
@@ -58,7 +58,7 @@ output에서 generated_text가 정상적으로 출력되지 않음 \
 
 ----
 
-## 2025-04-07: GPT4.0 Openchat 모델##  
+## 2025-04-07: GPT4.0 Openchat 모델 ##  
 LM Studio를 통해 다양한 자연어 처리 모델 테스트 \
 falcon -> GPT 4.0 버전의 Openchat 모델 변경 - ai_openchat_chat.py \
 JSON 반환 -> 자연스러운 대화형식으로 결과 반환 \
