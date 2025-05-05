@@ -2,6 +2,8 @@ import requests
 import json
 import re
 from kakao_navi import classify_place_kakao
+from func_get_image import download_images
+from kakao_search_info import fetch_place_info, show_res
 
 # 초기 값 설정
 video_title = ''
@@ -43,7 +45,7 @@ def chunk_comments(comments, chunk_size=10):
 
 #1차 댓글 요약 func
 def analyze_comments_lmstudio_text(file_path: str) -> list:
-    url = "http://localhost:1234/v1/chat/completions"
+    url = "http://192.168.75.162:1234/v1/chat/completions"
     comments = []
 
     with open(file_path, "r", encoding="utf-8") as f:
@@ -204,54 +206,6 @@ def rewrite_summary(summary_text):
     except Exception as e:
         print(f"[!] 에러 발생: {e}")
         return None
-    
-
-# #1. Google Custom Search 활용
-# #1차 -> 2차 -> return 파이프라인 func
-# def summary_comments(filepath):
-#     global matzip_lst, myeongso_lst, tip_lst
-
-#     # place_category = {}
-#     print(f'전달받은 video_title : {video_title}')
-#     region = get_region(video_title)
-#     print(f'설정된 region: {region}')
-
-#     analyze_comments_lmstudio_text(filepath)
-
-#     #matzip_lst // myeongso_lst 의 값을 병합해서 다시 구분 -> Google Custom Search 사용 -> 음.. kakao 지도 api도 괜찮을 거 같은데 ?
-
-#     #1. google custom search
-#     place_lst = []
-#     place_lst.extend(matzip_lst)
-#     place_lst.extend(myeongso_lst)
-
-#     matzip_lst = []
-#     myeongso_lst = []
-
-#     for place in place_lst:
-#         if place == '없음': continue
-#         guess_place = classify_place_google(place, region, API_KEY, CSE_ID)
-        
-#         if guess_place == '맛집':
-#             matzip_lst.append(place)
-#         elif guess_place == '명소':
-#             myeongso_lst.append(place)
-#         else:
-#             continue
-
-#     print('==============================')
-#     print('분석된 맛집:', *matzip_lst)
-#     print(f'분석된 명소: {myeongso_lst}')
-#     print(f'분석된 팁: {tip_lst}')
-#     print('==============================')
-
-#     print(f'\n\n\n================[rewriting]==================')
-#     str_data = '최종 분석된 맛집 리스트는', *matzip_lst, '이고, 명소 리스트는', *myeongso_lst,'야. 댓글에서 알려준 여행관련 팁들은',*tip_lst,'이고, 팁 부분에서 웨이팅이나 이동수단 처럼 여행에 꼭 필요한 내용만 작성해줘'
-    
-#     print(rewrite_summary(str_data))
-
-#     return True
-
 
 #2. KAKAO 지도 API 활용
 #1차 -> 2차 -> return 파이프라인 func
@@ -288,10 +242,24 @@ def summary_comments(filepath):
             continue
 
     print('==============================')
-    print('분석된 맛집:', *matzip_lst)
+    print('분석된 맛집:', matzip_lst)
     print(f'분석된 명소: {myeongso_lst}')
     print(f'분석된 팁: {tip_lst}')
     print('==============================')
+
+    matzip_json_data = []
+
+    #대표 이미지 추출 (가게 정면 사진 1장, 메뉴 사진 3장)
+    for matzip in matzip_lst:
+        download_images(f'{region} {matzip} 가게 외부사진', 1, '가게')
+        download_images(f'{region} {matzip} 음식사진', 3, '음식')
+
+        data = fetch_place_info(f'{region} {matzip}', f'downloaded_images\\{region} {matzip} 가게 외부사진.jpg')
+        matzip_json_data.append(data)
+
+    show_res(matzip_json_data)
+
+    
 
     print(f'\n\n\n================[rewriting]==================')
     str_data = '최종 분석된 맛집 리스트는', *matzip_lst, '이고, 명소 리스트는', *myeongso_lst,'야. 댓글에서 알려준 여행관련 팁들은',*tip_lst,'이고, 팁 부분에서 웨이팅이나 이동수단 처럼 여행에 꼭 필요한 내용만 작성해줘'
