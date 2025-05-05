@@ -1,6 +1,6 @@
 import requests
 
-with open('kakao_api.txt', 'r', encoding='utf-8') as f:
+with open('api_kakao.txt', 'r', encoding='utf-8') as f:
     KAKAO_API_KEY = f.readline()
 
 def classify_place_kakao(place_name, region):
