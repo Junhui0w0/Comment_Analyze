@@ -198,10 +198,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-api_key.txt
-api_falcon_key.txt
-api_search_place_info.txt
-api_search_engine_key.txt
-kakao_api.txt
+api*.txt
 
 # End of https://www.toptal.com/developers/gitignore/api/python,windows
