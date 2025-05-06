@@ -68,7 +68,10 @@ class VideoWidget(QWidget):
         self.title_label.setWordWrap(True)
         self.title_label.setStyleSheet("font-size: 14px; font-weight: bold;")
 
-        channel = QLabel(f"Channel: {self.video_data.get('channelTitle', 'Unknown')}")
+        # 댓글 수 
+        comment_count = self.video_data.get("commentCount", "알 수 없음")
+
+        channel = QLabel(f"Channel: {self.video_data.get('channelTitle', 'Unknown')} | 댓글수: {comment_count}")
         channel.setStyleSheet("color: #606060; font-size: 12px;")
 
         description = QLabel(self.video_data.get('description', 'No Description')[:100] + "...")
@@ -173,29 +176,78 @@ class YouTubeSearchApp(QMainWindow):
             'maxResults': 10 #검색할 동영상 수
         }
         
+        # try:
+        #     response = requests.get(url, params=params)
+        #     response.raise_for_status()  # HTTP 오류 발생 시 예외 처리
+            
+        #     data = response.json()
+            
+        #     if 'items' not in data or not data['items']:
+        #         QMessageBox.warning(self, "Warning", "No results found!")
+        #         return
+            
+        #     for item in data['items']:
+        #         snippet = item.get('snippet', {})
+        #         video_id = item.get('id', {}).get('videoId')  # videoId 추출
+
+        #         if not snippet or not video_id:
+        #             continue
+
+        #         snippet['videoId'] = video_id  # videoId를 snippet에 추가
+        #         video_widget = VideoWidget(snippet)  # VideoWidget 생성
+        #         self.results_layout.addWidget(video_widget)
+        
+        # except requests.exceptions.RequestException as e:
+        #     QMessageBox.critical(self, "Error", f"Failed to fetch data: {str(e)}")
+
+
         try:
             response = requests.get(url, params=params)
-            response.raise_for_status()  # HTTP 오류 발생 시 예외 처리
+            response.raise_for_status()
             
             data = response.json()
-            
             if 'items' not in data or not data['items']:
                 QMessageBox.warning(self, "Warning", "No results found!")
                 return
-            
+
+            video_ids = []
+            video_id_to_snippet = {}
+
+            # 1. search API 결과로부터 videoId와 snippet 저장
             for item in data['items']:
                 snippet = item.get('snippet', {})
-                video_id = item.get('id', {}).get('videoId')  # videoId 추출
+                video_id = item.get('id', {}).get('videoId')
+                if video_id:
+                    video_ids.append(video_id)
+                    snippet["videoId"] = video_id
+                    video_id_to_snippet[video_id] = snippet
 
-                if not snippet or not video_id:
-                    continue
+            # 2. videos API를 호출해 statistics(commentCount 등) 조회
+            stats_url = "https://www.googleapis.com/youtube/v3/videos"
+            stats_params = {
+                'part': 'statistics',
+                'id': ','.join(video_ids),
+                'key': YOUTUBE_API_KEY
+            }
 
-                snippet['videoId'] = video_id  # videoId를 snippet에 추가
-                video_widget = VideoWidget(snippet)  # VideoWidget 생성
-                self.results_layout.addWidget(video_widget)
-        
+            stats_response = requests.get(stats_url, params=stats_params)
+            stats_response.raise_for_status()
+            stats_data = stats_response.json()
+
+            video_stats = {item['id']: item['statistics'] for item in stats_data.get('items', [])}
+
+            # 3. snippet과 통합하여 VideoWidget 생성
+            for video_id in video_ids:
+                snippet = video_id_to_snippet.get(video_id)
+                stats = video_stats.get(video_id, {})
+                if snippet:
+                    snippet["commentCount"] = stats.get("commentCount", "알 수 없음")
+                    video_widget = VideoWidget(snippet)
+                    self.results_layout.addWidget(video_widget)
+
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, "Error", f"Failed to fetch data: {str(e)}")
+
 
 
     def add_to_selected(self, video_widget):
@@ -226,130 +278,6 @@ class YouTubeSearchApp(QMainWindow):
             
             except Exception as e:
                 print(f'yt_gui의 analyze_comments 디버깅 에러 발생: {e}')
-
-    # def analyze_comments(self, parent_window):
-    #     analysis_window = QDialog(parent_window)
-    #     analysis_window.setWindowTitle("Comment Analysis")
-    #     analysis_window.resize(600, 800)
-
-    #     # 스크롤 영역 생성
-    #     scroll_area = QScrollArea(analysis_window)
-    #     scroll_area.setWidgetResizable(True)
-
-    #     # 스크롤 콘텐츠 위젯
-    #     scroll_content = QWidget()
-    #     scroll_layout = QVBoxLayout(scroll_content)
-
-    #     for video_widget in self.selected_videos:
-    #         video_data = video_widget.video_data
-    #         video_id = video_data.get('videoId')
-    #         if not video_id:
-    #             continue
-
-    #         try:
-    #             # 댓글 수집 (좋아요 순위 TOP 10)
-    #             comments = get_top_comments(video_id, top_n=100)  # 상위 100개 댓글 수집
-    #             print(f'\n[디버깅-yt_gui.py] get_top_comments에서 추출된 댓글\n {comments}')
-    #             print('\n[디버깅-yt_gui.py] analyze_comments에서 추출된 제목: ', video_data.get('title', 'No Title'))
-    #             ai_openchat_chat.video_title = video_data.get('title', 'No Title')
-    #             print(f'\n[디버깅-yt_gui.py] analyze_comments에서 추출된 video_id: {video_id}')
-
-    #             file_path = output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
-    #             summary_comments(file_path)
-
-    #             #아래 감정 분석 파트는 없어도 될듯?
-
-    #             # 감정 분석 및 토픽 모델링 수행
-    #             sentiment_results, topics = analyze_video_comments(comments)
-
-    #             # 동영상 제목 및 썸네일 표시
-    #             thumbnail_url = video_data.get('thumbnails', {}).get('medium', {}).get('url', '')
-    #             pixmap = QPixmap()
-    #             if thumbnail_url:
-    #                 try:
-    #                     image_data = requests.get(thumbnail_url).content
-    #                     pixmap.loadFromData(image_data)
-    #                 except Exception as e:
-    #                     print(f"썸네일 로드 실패: {e}")
-    #                     pixmap = QPixmap("placeholder.jpg")  # 기본 이미지 사용
-    #             else:
-    #                 pixmap = QPixmap("placeholder.jpg")
-
-    #             header_layout = QHBoxLayout()
-    #             img_label = QLabel()
-    #             img_label.setPixmap(pixmap.scaled(120, 90, Qt.KeepAspectRatio))
-
-    #             title_label = QLabel(video_data.get('title', 'No Title'))
-    #             title_label.setWordWrap(True)
-    #             title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-left: 10px;")
-
-    #             header_layout.addWidget(img_label)
-    #             header_layout.addWidget(title_label)
-
-    #             header_widget = QWidget()
-    #             header_widget.setLayout(header_layout)
-    #             scroll_layout.addWidget(header_widget)
-
-    #             # 감정 분석 결과 표시
-    #             sentiment_label = QLabel(f"Sentiments - Positive: {sentiment_results['positive']}%, "
-    #                                     f"Neutral: {sentiment_results['neutral']}%, "
-    #                                     f"Negative: {sentiment_results['negative']}%")
-    #             sentiment_label.setStyleSheet("font-size: 14px; color: #404040; margin-left: 15px; margin-top: 10px;")
-    #             scroll_layout.addWidget(sentiment_label)
-
-    #             # 토픽 모델링 결과 표시
-    #             topic_label = QLabel("Topics:")
-    #             topic_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-top: 10px;")
-    #             scroll_layout.addWidget(topic_label)
-
-    #             for topic, words in topics.items():
-    #                 topic_line = QLabel(f"{topic}: {', '.join(words)}")
-    #                 topic_line.setStyleSheet("font-size: 12px; color: #606060; margin-left: 15px;")
-    #                 scroll_layout.addWidget(topic_line)
-
-    #             layout_separator = QFrame()
-    #             layout_separator.setFrameShape(QFrame.HLine)
-    #             layout_separator.setStyleSheet("margin-top: 10px; margin-bottom: 10px; border: 1px solid #CCCCCC;")
-    #             scroll_layout.addWidget(layout_separator)
-
-    #             # 댓글 TOP 10 표시
-    #             comment_title = QLabel("Top Comments (by Likes):")
-    #             comment_title.setStyleSheet("font-size: 14px; font-weight: bold; margin-top: 15px;")
-    #             scroll_layout.addWidget(comment_title)
-
-    #             for idx, comment in enumerate(comments[:10], start=1):  # 상위 10개만 표시
-    #                 comment_box = QGroupBox(f"{idx}.")
-    #                 comment_layout = QVBoxLayout()
-
-    #                 content_label = QLabel(comment.split("|")[0].strip())  # 댓글 내용
-    #                 content_label.setWordWrap(True)
-    #                 content_label.setStyleSheet("font-size: 14px; color: #404040;")
-
-    #                 likes_count = '좋아요 수: ' + comment.split("|")[1].strip()
-    #                 likes_label = QLabel(likes_count)  # 좋아요 수
-    #                 likes_label.setStyleSheet("font-size: 12px; color: #606060; margin-top: 5px;")
-
-    #                 comment_layout.addWidget(content_label)
-    #                 comment_layout.addWidget(likes_label)
-
-    #                 comment_box.setLayout(comment_layout)
-    #                 scroll_layout.addWidget(comment_box)
-
-    #         except Exception as e:
-    #             error_label = QLabel(f"Failed to fetch comments for {video_data.get('title', 'No Title')}: {str(e)}")
-    #             print(f'[디버깅-Erorr]: {str(e)}')
-    #             error_label.setStyleSheet("color: red;")
-    #             scroll_layout.addWidget(error_label)
-
-    #     # 스크롤 영역에 콘텐츠 설정
-    #     scroll_content.setLayout(scroll_layout)
-    #     scroll_area.setWidget(scroll_content)
-
-    #     main_layout = QVBoxLayout(analysis_window)
-    #     main_layout.addWidget(scroll_area)
-    #     analysis_window.setLayout(main_layout)
-
-    #     analysis_window.exec_()
 
     def clear_selected_videos(self):
         self.selected_videos.clear()
