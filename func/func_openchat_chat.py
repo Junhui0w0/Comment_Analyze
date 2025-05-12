@@ -45,7 +45,7 @@ def chunk_comments(comments, chunk_size=10):
 
 #1차 댓글 요약 func
 def analyze_comments_lmstudio_text(file_path: str) -> list:
-    url = "http://192.168.75.162:1234/v1/chat/completions"
+    url = "http://localhost:1234/v1/chat/completions"
     comments = []
 
     with open(file_path, "r", encoding="utf-8") as f:
