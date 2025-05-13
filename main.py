@@ -20,6 +20,97 @@ with open("api\\api_key.txt", "r") as f:
 def get_filename():
     return file_path
     
+class LoadingOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet("background-color: rgba(255, 255, 255, 180);")
+        self.setFixedSize(parent.size())
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignCenter)
+
+        gif_path = "ui\\loading.gif"
+        self.label = QLabel()
+        self.movie = QMovie(gif_path)
+
+        if not self.movie.isValid():
+            print("⚠️ loading.gif 로딩 실패:", gif_path)
+
+        self.label.setMovie(self.movie)
+        self.movie.start()
+
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+        self.hide()
+
+    def show(self):
+        self.raise_()
+        super().show()
+
+
+class SearchWorker(QThread):
+    search_completed = pyqtSignal(list)  # 리스트 형태로 비디오 데이터 emit
+
+    def __init__(self, query, api_key):
+        super().__init__()
+        self.query = query
+        self.api_key = api_key
+
+    def run(self):
+        try:
+            url = "https://www.googleapis.com/youtube/v3/search"
+            params = {
+                'part': 'snippet',
+                'q': self.query,
+                'key': self.api_key,
+                'type': 'video',
+                'maxResults': 20
+            }
+
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            video_ids = []
+            video_id_to_snippet = {}
+
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                video_id = item.get('id', {}).get('videoId')
+                if video_id:
+                    video_ids.append(video_id)
+                    snippet["videoId"] = video_id
+                    video_id_to_snippet[video_id] = snippet
+
+            stats_url = "https://www.googleapis.com/youtube/v3/videos"
+            stats_params = {
+                'part': 'statistics',
+                'id': ','.join(video_ids),
+                'key': self.api_key
+            }
+
+            stats_response = requests.get(stats_url, params=stats_params)
+            stats_response.raise_for_status()
+            stats_data = stats_response.json()
+
+            video_stats = {item['id']: item['statistics'] for item in stats_data.get('items', [])}
+
+            # 최종 데이터 패킹
+            video_list = []
+            for video_id in video_ids:
+                snippet = video_id_to_snippet.get(video_id, {})
+                stats = video_stats.get(video_id, {})
+                snippet["commentCount"] = stats.get("commentCount", "알 수 없음")
+                video_list.append(snippet)
+
+            self.search_completed.emit(video_list)
+
+        except Exception as e:
+            print(f"SearchWorker Error: {e}")
+            self.search_completed.emit([])
+
 
 class ClickableLabel(QLabel):
     clicked = pyqtSignal()
@@ -120,11 +211,17 @@ class VideoWidget(QWidget):
 class YouTubeSearchApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.loading_overlay = LoadingOverlay(self)
         self.selected_videos = []
         self.initUI()
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.offset = None
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.loading_overlay:
+            self.loading_overlay.setFixedSize(self.size())
 
     def initUI(self):
         self.setWindowTitle('YouTube Search')
@@ -248,6 +345,21 @@ class YouTubeSearchApp(QMainWindow):
 
         main_widget.setLayout(layout)
 
+
+    def display_results(self, video_list):
+        # 🔹 이전 검색 결과 제거
+        for i in reversed(range(self.results_layout.count())):
+            widget_to_remove = self.results_layout.itemAt(i).widget()
+            if widget_to_remove:
+                widget_to_remove.deleteLater()
+
+        for snippet in video_list:
+            QApplication.processEvents()
+            video_widget = VideoWidget(snippet)
+            self.results_layout.addWidget(video_widget)
+
+        self.loading_overlay.hide()  # 🔹 로딩 숨기기
+
     def search_videos(self):
         query = self.search_input.text().strip()
 
@@ -255,64 +367,13 @@ class YouTubeSearchApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please enter a search term!")
             return
 
-        for i in reversed(range(self.results_layout.count())):
-            widget_to_remove = self.results_layout.itemAt(i).widget()
-            if widget_to_remove:
-                widget_to_remove.deleteLater()
+        self.loading_overlay.show()  # 🔹 로딩 표시
+        QApplication.processEvents()
 
-        url = "https://www.googleapis.com/youtube/v3/search"
+        self.worker = SearchWorker(query, YOUTUBE_API_KEY)
+        self.worker.search_completed.connect(self.display_results)
+        self.worker.start()
 
-        params = {
-            'part': 'snippet',
-            'q': query,
-            'key': YOUTUBE_API_KEY,
-            'type': 'video',
-            'maxResults': 20 #출력되는 영상 최대 갯수
-        }
-
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-
-            data = response.json()
-            if 'items' not in data or not data['items']:
-                QMessageBox.warning(self, "Warning", "No results found!")
-                return
-
-            video_ids = []
-            video_id_to_snippet = {}
-
-            for item in data['items']:
-                snippet = item.get('snippet', {})
-                video_id = item.get('id', {}).get('videoId')
-                if video_id:
-                    video_ids.append(video_id)
-                    snippet["videoId"] = video_id
-                    video_id_to_snippet[video_id] = snippet
-
-            stats_url = "https://www.googleapis.com/youtube/v3/videos"
-            stats_params = {
-                'part': 'statistics',
-                'id': ','.join(video_ids),
-                'key': YOUTUBE_API_KEY
-            }
-
-            stats_response = requests.get(stats_url, params=stats_params)
-            stats_response.raise_for_status()
-            stats_data = stats_response.json()
-
-            video_stats = {item['id']: item['statistics'] for item in stats_data.get('items', [])}
-
-            for video_id in video_ids:
-                snippet = video_id_to_snippet.get(video_id)
-                stats = video_stats.get(video_id, {})
-                if snippet:
-                    snippet["commentCount"] = stats.get("commentCount", "알 수 없음")
-                    video_widget = VideoWidget(snippet)
-                    self.results_layout.addWidget(video_widget)
-
-        except requests.exceptions.RequestException as e:
-            QMessageBox.critical(self, "Error", f"Failed to fetch data: {str(e)}")
 
     def add_to_selected(self, video_widget):
         if video_widget not in self.selected_videos:
