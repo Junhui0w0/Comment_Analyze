@@ -123,7 +123,8 @@ class YouTubeSearchApp(QMainWindow):
         self.selected_videos = []
         self.initUI()
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)  # 배경 투명 옵션 (선택)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.offset = None
 
     def initUI(self):
         self.setWindowTitle('YouTube Search')
@@ -266,7 +267,7 @@ class YouTubeSearchApp(QMainWindow):
             'q': query,
             'key': YOUTUBE_API_KEY,
             'type': 'video',
-            'maxResults': 10
+            'maxResults': 20 #출력되는 영상 최대 갯수
         }
 
         try:
@@ -393,6 +394,17 @@ class YouTubeSearchApp(QMainWindow):
 
         selected_window.setLayout(dialog_layout)
         selected_window.exec_()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.offset = event.globalPos() - self.frameGeometry().topLeft()
+
+    def mouseMoveEvent(self, event):
+        if self.offset is not None and event.buttons() == Qt.LeftButton:
+            self.move(event.globalPos() - self.offset)
+
+    def mouseReleaseEvent(self, event):
+        self.offset = None
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
