@@ -3,7 +3,7 @@ import json
 import re
 from func.func_kakao_navi import classify_place_kakao
 from func.func_get_image import download_images
-from func.func_kakao_search_info import fetch_place_info, show_res
+from func.func_kakao_search_info import fetch_place_info, execute
 
 # 초기 값 설정
 video_title = ''
@@ -268,7 +268,7 @@ def summary_comments(filepath):
         url_set.add(data["url"])
         matzip_json_data.append(data)
 
-    show_res(matzip_json_data)
+    execute(matzip_json_data)
 
 
 
