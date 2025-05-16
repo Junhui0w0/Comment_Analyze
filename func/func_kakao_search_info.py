@@ -1,9 +1,22 @@
-import tkinter as tk
+# import tkinter as tk
 import requests
+import sys
 from io import BytesIO
-from tkinter import ttk
+# from tkinter import ttk
+
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
+    QHBoxLayout, QMainWindow, QFrame
+)
+from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtCore import Qt
+
+
 from PIL import Image, ImageTk
+
 from func.func_get_image import download_images
+# from func_get_image import download_images
+
 import webbrowser
 
 with open("api\\api_kakao.txt", 'r', encoding='utf-8') as f:
@@ -56,79 +69,218 @@ def fetch_place_info(place_name, region):
     return None
 
 
-def show_res(place_lst):
-    root = tk.Tk()
-    root.title("맛집 정보 리스트")
-    root.geometry("600x850")
+class PlaceCard(QFrame):
+    def __init__(self, place):
+        super().__init__()
+        self.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 12px;
+                border: 1px solid #ccc;
+                padding: 10px;
+            }
+        """)
+        self.init_ui(place)
 
-    canvas = tk.Canvas(root)
-    scrollbar = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
-    scrollable_frame = tk.Frame(canvas)
+    def init_ui(self, place):
+        layout = QHBoxLayout()
 
-    # 스크롤 프레임 설정
-    scrollable_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-    )
+        # 이미지
+        image_label = QLabel()
+        pixmap = QPixmap(place["image"])
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            image_label.setPixmap(pixmap)
+        image_label.setFixedSize(120, 120)
+        layout.addWidget(image_label)
 
-    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
+        # 텍스트 & 버튼
+        text_layout = QVBoxLayout()
 
-    def _on_mousewheel(event):
-        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        text_info = f"""<b>가게이름:</b> {place['name']}<br>
+<b>주소:</b> {place['address']}<br>
+<b>카테고리:</b> {place['category']}"""
+        label = QLabel(text_info)
+        label.setStyleSheet("font-size: 13px; color: #333;")
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
 
-    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        btn = QPushButton("지도 바로가기")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet("""
+            QPushButton {
+                background-color: #5CA8F6;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3b92dc;
+            }
+        """)
+        btn.clicked.connect(lambda: webbrowser.open(place["url"]))
 
-    # 항목별 UI 생성
-    for place in place_lst:
-        row_frame = tk.Frame(scrollable_frame, pady=10)
-
-        # 이미지 로드 및 표시
-        img = Image.open(place["image"]).resize((150, 150))
-        photo = ImageTk.PhotoImage(img)
-        img_label = tk.Label(row_frame, image=photo)
-        img_label.image = photo  # 참조 유지
-        img_label.pack(side="left", padx=10)
-
-
-
-        # # 텍스트 정보
-        # text_info = f"""가게이름: {place['name']} \n주소: {place['address']} \n카테고리: {place['category']}"""
-
-        # text_label = tk.Label(row_frame, text=text_info, justify="left", anchor="w", font=("맑은 고딕", 11))
-        # text_label.pack(side="left", padx=10)
-
-        # # 지도 링크 하이퍼텍스트처럼 표시
-        # url_label = tk.Label(row_frame, text="지도 바로가기", fg="blue", cursor="hand2", font=("맑은 고딕", 11, "underline"))
-        # url_label.pack(side="left", padx=5)
-        # url_label.bind("<Button-1>", lambda e, url=place['url']: webbrowser.open_new(url))
-
-
-
-        # 텍스트 정보 (이름, 주소, 카테고리)
-        text_info = f"""가게이름: {place['name']} \n주소: {place['address']} \n카테고리: {place['category']}"""
-
-        text_label = tk.Label(row_frame, text=text_info, justify="left", anchor="w", font=("맑은 고딕", 11))
-        text_label.pack(side="left", padx=10, anchor="n")
-
-        # 지도 링크를 텍스트 아래에 추가
-        url_label = tk.Label(row_frame, text="지도 바로가기", fg="blue", cursor="hand2", font=("맑은 고딕", 11, "underline"))
-        url_label.pack(side="left", padx=10, anchor="n")
-        url_label.bind("<Button-1>", lambda e, url=place['url']: webbrowser.open_new(url))
+        text_layout.addWidget(label)
+        text_layout.addWidget(btn, alignment=Qt.AlignLeft)
+        layout.addLayout(text_layout)
+        self.setLayout(layout)
 
 
-        row_frame.pack(fill="x")
+class PlaceListWindow(QMainWindow):
+    def __init__(self, place_list):
+        super().__init__()
+        self.place_list = place_list
+        self.offset = None
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.initUI()
 
-    canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
+    def initUI(self):
+        self.setGeometry(300, 100, 600, 850)
 
-    root.mainloop()
+        # ▶ 중앙 위젯
+        main_widget = QWidget()
+        main_widget.setStyleSheet("background-color: #f2f2f2;")
+        self.setCentralWidget(main_widget)
 
-# # 테스트
-# lst = ['돈가스', '양곱창','신발원','새우교자','백탄','양곱창집','톤쇼우', '나가하마만게츠','레인스트릿']
-# place_json_data = []
-# for text in lst:
-#     place = fetch_place_info(f'부산 {text}')
-#     place_json_data.append(place)
-#     print(place)
+        # ▶ 사용자 타이틀바
+        title_bar = QHBoxLayout()
+        title_bar.setContentsMargins(0, 0, 0, 0)
 
+        title = QLabel("🍽 맛집 리스트")
+        title.setStyleSheet("font-weight: bold; color: black; font-size: 16px; padding-left: 10px;")
+
+        btn_min = QPushButton("-")
+        btn_max = QPushButton("□")
+        btn_close = QPushButton("✕")
+
+        for btn in (btn_min, btn_max, btn_close):
+            btn.setFixedSize(30, 30)
+            btn.setStyleSheet("""
+                QPushButton {
+                    color: black;
+                    border: none;
+                    font-size: 16px;
+                }
+                QPushButton:hover {
+                    background-color: #C0C0C0;
+                }
+            """)
+
+        btn_min.clicked.connect(self.showMinimized)
+        btn_max.clicked.connect(lambda: self.showNormal() if self.isMaximized() else self.showMaximized())
+        btn_close.clicked.connect(self.close)
+
+        title_bar.addWidget(title)
+        title_bar.addStretch()
+        title_bar.addWidget(btn_min)
+        title_bar.addWidget(btn_max)
+        title_bar.addWidget(btn_close)
+
+        # ▶ 콘텐츠 영역
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollBar:vertical {
+                background: #f0f0f0;
+                width: 10px;
+                margin: 2px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #888;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #555;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+        """)
+
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        for place in self.place_list:
+            card = PlaceCard(place)  # 기존 카드 위젯
+            vbox.addWidget(card)
+            vbox.addSpacing(10)
+        vbox.addStretch()
+        scroll.setWidget(container)
+
+        # ▶ 전체 레이아웃 조립
+        layout = QVBoxLayout(main_widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.addLayout(title_bar)
+        layout.addWidget(scroll)
+
+    # ▶ 창 드래그 이동 지원
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.offset = event.globalPos() - self.frameGeometry().topLeft()
+
+    def mouseMoveEvent(self, event):
+        if self.offset and event.buttons() == Qt.LeftButton:
+            self.move(event.globalPos() - self.offset)
+
+    def mouseReleaseEvent(self, event):
+        self.offset = None
+
+
+
+
+
+if __name__ == "__main__":
+    test_data = [
+        {
+            "name": "삼겹살천국",
+            "address": "서울특별시 강남구 테헤란로 123",
+            "url": "https://place.map.kakao.com/12345678",
+            "category": "한식 > 고기집",
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+        },
+        {
+            "name": "명동돈까스",
+            "address": "서울특별시 중구 명동길 9",
+            "url": "https://place.map.kakao.com/23456789",
+            "category": "일식 > 돈까스",
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+        },
+        {
+            "name": "초밥이야기",
+            "address": "부산광역시 해운대구 해운대로 456",
+            "url": "https://place.map.kakao.com/34567890",
+            "category": "일식 > 초밥",
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+        },
+        {
+            "name": "라면대통령",
+            "address": "대전광역시 유성구 대학로 99",
+            "url": "https://place.map.kakao.com/45678901",
+            "category": "일식 > 라멘",
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+        },
+        {
+            "name": "홍콩반점",
+            "address": "인천광역시 남동구 예술로 21",
+            "url": "https://place.map.kakao.com/56789012",
+            "category": "중식 > 중화요리",
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+        }
+    ]
+        
+    app = QApplication(sys.argv)
+    window = PlaceListWindow(test_data)
+    window.show()
+    sys.exit(app.exec_())
+    # # 테스트
+
+    # lst = ['돈가스', '양곱창','신발원','새우교자','백탄','양곱창집','톤쇼우', '나가하마만게츠','레인스트릿']
+    # place_json_data = []
+    # for text in lst:
+    #     place = fetch_place_info(f'부산 {text}')
+    #     place_json_data.append(place)
+    #     print(place)

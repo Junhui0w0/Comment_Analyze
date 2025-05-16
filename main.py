@@ -66,7 +66,7 @@ class SearchWorker(QThread):
                 'q': self.query,
                 'key': self.api_key,
                 'type': 'video',
-                'maxResults': 20
+                'maxResults': 15
             }
 
             response = requests.get(url, params=params)
