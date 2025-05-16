@@ -229,10 +229,6 @@ class PlaceListWindow(QMainWindow):
     def mouseReleaseEvent(self, event):
         self.offset = None
 
-
-
-
-
 if __name__ == "__main__":
     test_data = [
         {
