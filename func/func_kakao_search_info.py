@@ -6,7 +6,7 @@ from io import BytesIO
 
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
-    QHBoxLayout, QMainWindow, QFrame
+    QHBoxLayout, QMainWindow, QFrame, QDialog
 )
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtCore import Qt
@@ -68,7 +68,6 @@ def fetch_place_info(place_name, region):
     
     return None
 
-
 class PlaceCard(QFrame):
     def __init__(self, place):
         super().__init__()
@@ -127,30 +126,36 @@ class PlaceCard(QFrame):
         layout.addLayout(text_layout)
         self.setLayout(layout)
 
-
-class PlaceListWindow(QMainWindow):
-    def __init__(self, place_list):
-        super().__init__()
+class PlaceListWindow(QDialog):
+    def __init__(self, place_list, parent=None):
+        super().__init__(parent)
         self.place_list = place_list
         self.offset = None
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setModal(True)
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 100, 600, 850)
+        self.resize(600, 850)
+        self.setStyleSheet("background-color: transparent;")  # 완전 투명
 
-        # ▶ 중앙 위젯
-        main_widget = QWidget()
-        main_widget.setStyleSheet("background-color: #f2f2f2;")
-        self.setCentralWidget(main_widget)
+        # ▶ 전체 감싸는 배경 프레임
+        bg_frame = QFrame(self)
+        bg_frame.setObjectName("bg_frame")
+        bg_frame.setStyleSheet("""
+            QFrame#bg_frame {
+                background-color: #f2f2f2;
+                border-radius: 12px;
+            }
+        """)
+        bg_layout = QVBoxLayout(bg_frame)
+        bg_layout.setContentsMargins(10, 10, 10, 10)
 
-        # ▶ 사용자 타이틀바
+        # ▶ 타이틀바
         title_bar = QHBoxLayout()
-        title_bar.setContentsMargins(0, 0, 0, 0)
-
         title = QLabel("🍽 맛집 리스트")
-        title.setStyleSheet("font-weight: bold; color: black; font-size: 16px; padding-left: 10px;")
+        title.setStyleSheet("font-weight: bold; font-size: 16px; padding-left: 10px;")
 
         btn_min = QPushButton("-")
         btn_max = QPushButton("□")
@@ -179,7 +184,7 @@ class PlaceListWindow(QMainWindow):
         title_bar.addWidget(btn_max)
         title_bar.addWidget(btn_close)
 
-        # ▶ 콘텐츠 영역
+        # ▶ 내용 스크롤
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("""
@@ -205,19 +210,22 @@ class PlaceListWindow(QMainWindow):
         container = QWidget()
         vbox = QVBoxLayout(container)
         for place in self.place_list:
-            card = PlaceCard(place)  # 기존 카드 위젯
+            card = PlaceCard(place)
             vbox.addWidget(card)
             vbox.addSpacing(10)
         vbox.addStretch()
         scroll.setWidget(container)
 
-        # ▶ 전체 레이아웃 조립
-        layout = QVBoxLayout(main_widget)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.addLayout(title_bar)
-        layout.addWidget(scroll)
+        # ▶ 타이틀바 + 스크롤 추가
+        bg_layout.addLayout(title_bar)
+        bg_layout.addWidget(scroll)
 
-    # ▶ 창 드래그 이동 지원
+        # ▶ 최종 전체 레이아웃
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(bg_frame)
+
+    # 창 드래그 이동 지원
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.offset = event.globalPos() - self.frameGeometry().topLeft()
@@ -230,6 +238,9 @@ class PlaceListWindow(QMainWindow):
         self.offset = None
 
 
+def execute(data_lst):
+    dialog = PlaceListWindow(data_lst)
+    dialog.exec_() 
 
 
 
