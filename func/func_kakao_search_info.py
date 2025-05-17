@@ -62,7 +62,8 @@ def fetch_place_info(place_name, region):
             "address": place['road_address_name'],
             "url": place['place_url'],
             "category": place['category_name'],
-            "image" : f'downloaded_images\\{region} {name} 가게 외부사진.jpg'
+            "image" : f'downloaded_images\\{region} {name} 가게 외부사진.jpg',
+            "phone" : place.get("phone", "없음"),
             # "x": place['x'], "y": place['y']
         }
     
@@ -98,6 +99,7 @@ class PlaceCard(QFrame):
 
         text_info = f"""<b>가게이름:</b> {place['name']}<br>
 <b>주소:</b> {place['address']}<br>
+<b>전화번호:</b> {place['phone']}<br>
 <b>카테고리:</b> {place['category']}"""
         label = QLabel(text_info)
         label.setStyleSheet("font-size: 13px; color: #333;")
