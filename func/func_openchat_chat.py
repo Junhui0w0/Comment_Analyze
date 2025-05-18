@@ -268,7 +268,7 @@ def summary_comments(filepath):
         url_set.add(data["url"])
         matzip_json_data.append(data)
 
-    execute(matzip_json_data)
+    # execute(matzip_json_data)
 
 
 
@@ -286,7 +286,7 @@ def summary_comments(filepath):
     tip_lst.clear()
     url_set.clear()
 
-    return True
+    return matzip_json_data
     
 
 

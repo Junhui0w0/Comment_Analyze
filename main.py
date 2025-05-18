@@ -8,7 +8,7 @@ from PyQt5.QtGui import *
 from func.func_GetComments import get_top_comments
 from func.func_output_txt import output_by_txt
 
-from func.func_openchat_chat import summary_comments
+from func.func_openchat_chat import summary_comments, execute
 import func.func_openchat_chat
 
 file_path = ''
@@ -46,9 +46,42 @@ class LoadingOverlay(QWidget):
         self.hide()
 
     def show(self):
+        self.movie.start()
         self.raise_()
         super().show()
 
+    def hide(self):
+        self.movie.stop()
+        super().hide()
+
+class AnalyzeWorker(QThread):
+    finished = pyqtSignal(list)   # 분석 결과를 emit
+    error = pyqtSignal(str)
+
+    def __init__(self, selected_videos):
+        super().__init__()
+        self.selected_videos = selected_videos
+
+    def run(self):
+        try:
+            all_results = []
+            for video_widget in self.selected_videos:
+                video_data = video_widget.video_data
+                video_id = video_data.get('videoId')
+                if not video_id:
+                    continue
+                comments = get_top_comments(video_id, top_n=100)
+                func.func_openchat_chat.video_title = video_data.get('title', 'No Title')
+                file_path = output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
+
+                result_data = func.func_openchat_chat.summary_comments(file_path)
+                if isinstance(result_data, list):  # 안전성 확보
+                    all_results.extend(result_data)
+
+            self.finished.emit(all_results)
+
+        except Exception as e:
+            self.error.emit(str(e))
 
 class SearchWorker(QThread):
     search_completed = pyqtSignal(list)  # 리스트 형태로 비디오 데이터 emit
@@ -450,11 +483,32 @@ class YouTubeSearchApp(QMainWindow):
             dialog_layout.addWidget(container_widget)
 
         analyze_button = QPushButton("Analyze")
-        analyze_button.clicked.connect(lambda: self.analyze_comments(selected_window))
+
+        selected_loading = LoadingOverlay(selected_window)
+        selected_loading.setGeometry(0, 0, selected_window.width(), selected_window.height())
+
+        def start_analysis():
+            selected_loading.show()
+            self.analysis_worker = AnalyzeWorker(self.selected_videos)
+
+            def on_finished(result_data):
+                selected_loading.hide()
+                selected_window.accept()
+                execute(result_data)
+
+            self.analysis_worker.finished.connect(on_finished)
+            self.analysis_worker.error.connect(lambda msg: print(f"Error: {msg}"))
+            self.analysis_worker.start()
+
+        analyze_button.clicked.connect(start_analysis)
         dialog_layout.addWidget(analyze_button)
 
         selected_window.setLayout(dialog_layout)
         selected_window.exec_()
+
+    def on_analysis_finished(self, result_data):
+        self.loading_overlay.hide()
+        execute(result_data)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
