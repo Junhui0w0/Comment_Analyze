@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
     QHBoxLayout, QMainWindow, QFrame, QDialog
 )
-from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtGui import QPixmap, QFont, QPainterPath, QPainter
 from PyQt5.QtCore import Qt
 
 
@@ -69,6 +69,21 @@ def fetch_place_info(place_name, region):
     
     return None
 
+def get_rounded_pixmap(pixmap, radius, size): #이미지 둥글게
+    pixmap = pixmap.scaled(size, size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    rounded = QPixmap(size, size)
+    rounded.fill(Qt.transparent)
+
+    painter = QPainter(rounded)
+    painter.setRenderHint(QPainter.Antialiasing)
+    path = QPainterPath()
+    path.addRoundedRect(0, 0, size, size, radius, radius)
+    painter.setClipPath(path)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.end()
+
+    return rounded
+
 class PlaceCard(QFrame):
     def __init__(self, place):
         super().__init__()
@@ -84,23 +99,26 @@ class PlaceCard(QFrame):
 
     def init_ui(self, place):
         layout = QHBoxLayout()
-
-        # 이미지
         image_label = QLabel()
+        image_label.setStyleSheet("""
+            QFrame{
+                padding: 0px;
+            }
+        """)
         pixmap = QPixmap(place["image"])
         if not pixmap.isNull():
-            pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            image_label.setPixmap(pixmap)
+            rounded = get_rounded_pixmap(pixmap, radius=12, size=120)
+            image_label.setPixmap(rounded)
         image_label.setFixedSize(120, 120)
         layout.addWidget(image_label)
 
-        # 텍스트 & 버튼
         text_layout = QVBoxLayout()
 
         text_info = f"""<b>가게이름:</b> {place['name']}<br>
+<b>카테고리:</b> {place['category']}<br><br>
+
 <b>주소:</b> {place['address']}<br>
-<b>전화번호:</b> {place['phone']}<br>
-<b>카테고리:</b> {place['category']}"""
+<b>전화번호:</b> {place['phone']}"""
         label = QLabel(text_info)
         label.setStyleSheet("font-size: 13px; color: #333;")
         label.setTextFormat(Qt.RichText)
@@ -140,9 +158,8 @@ class PlaceListWindow(QDialog):
 
     def initUI(self):
         self.resize(600, 850)
-        self.setStyleSheet("background-color: transparent;")  # 완전 투명
+        self.setStyleSheet("background-color: transparent;")
 
-        # ▶ 전체 감싸는 배경 프레임
         bg_frame = QFrame(self)
         bg_frame.setObjectName("bg_frame")
         bg_frame.setStyleSheet("""
@@ -154,7 +171,6 @@ class PlaceListWindow(QDialog):
         bg_layout = QVBoxLayout(bg_frame)
         bg_layout.setContentsMargins(10, 10, 10, 10)
 
-        # ▶ 타이틀바
         title_bar = QHBoxLayout()
         title = QLabel("🍽 맛집 리스트")
         title.setStyleSheet("font-weight: bold; font-size: 16px; padding-left: 10px;")
@@ -186,7 +202,6 @@ class PlaceListWindow(QDialog):
         title_bar.addWidget(btn_max)
         title_bar.addWidget(btn_close)
 
-        # ▶ 내용 스크롤
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("""
@@ -218,11 +233,9 @@ class PlaceListWindow(QDialog):
         vbox.addStretch()
         scroll.setWidget(container)
 
-        # ▶ 타이틀바 + 스크롤 추가
         bg_layout.addLayout(title_bar)
         bg_layout.addWidget(scroll)
 
-        # ▶ 최종 전체 레이아웃
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(bg_frame)
@@ -253,35 +266,40 @@ if __name__ == "__main__":
             "address": "서울특별시 강남구 테헤란로 123",
             "url": "https://place.map.kakao.com/12345678",
             "category": "한식 > 고기집",
-            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
+            "phone" : "010-1234-5678"
         },
         {
             "name": "명동돈까스",
             "address": "서울특별시 중구 명동길 9",
             "url": "https://place.map.kakao.com/23456789",
             "category": "일식 > 돈까스",
-            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
+            "phone" : "010-1234-5678"
         },
         {
             "name": "초밥이야기",
             "address": "부산광역시 해운대구 해운대로 456",
             "url": "https://place.map.kakao.com/34567890",
             "category": "일식 > 초밥",
-            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
+            "phone" : "010-1234-5678"
         },
         {
             "name": "라면대통령",
             "address": "대전광역시 유성구 대학로 99",
             "url": "https://place.map.kakao.com/45678901",
             "category": "일식 > 라멘",
-            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
+            "phone" : "010-1234-5678"
         },
         {
             "name": "홍콩반점",
             "address": "인천광역시 남동구 예술로 21",
             "url": "https://place.map.kakao.com/56789012",
             "category": "중식 > 중화요리",
-            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg"
+            "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
+            "phone" : "010-1234-5678"
         }
     ]
         
@@ -289,11 +307,3 @@ if __name__ == "__main__":
     window = PlaceListWindow(test_data)
     window.show()
     sys.exit(app.exec_())
-    # # 테스트
-
-    # lst = ['돈가스', '양곱창','신발원','새우교자','백탄','양곱창집','톤쇼우', '나가하마만게츠','레인스트릿']
-    # place_json_data = []
-    # for text in lst:
-    #     place = fetch_place_info(f'부산 {text}')
-    #     place_json_data.append(place)
-    #     print(place)
