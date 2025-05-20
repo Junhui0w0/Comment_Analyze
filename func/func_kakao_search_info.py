@@ -1,21 +1,15 @@
-# import tkinter as tk
 import requests
 import sys
 from io import BytesIO
-# from tkinter import ttk
 
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
-    QHBoxLayout, QMainWindow, QFrame, QDialog
-)
-from PyQt5.QtGui import QPixmap, QFont, QPainterPath, QPainter
-from PyQt5.QtCore import Qt
-
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from PIL import Image, ImageTk
 
-from func.func_get_image import download_images
-# from func_get_image import download_images
+# from func.func_get_image import download_images
+from func_get_image import download_images
 
 import webbrowser
 
@@ -84,6 +78,41 @@ def get_rounded_pixmap(pixmap, radius, size): #이미지 둥글게
 
     return rounded
 
+class ClickableLabel(QLabel):
+    clicked = pyqtSignal()  # PyQt5 시그널
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+
+class ImageGridDialog(QDialog): #1행 3열로 이미지 출력
+    def __init__(self, image_paths, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("가게 음식사진")
+        self.setFixedSize(600, 200)
+        self.setStyleSheet("""
+            QDialog{
+                background-color:white;               
+            }
+
+            QFrame{
+                padding: 0px;
+            }
+        """)
+
+        layout = QHBoxLayout(self)
+
+        for path in image_paths:
+            label = QLabel()
+            pixmap = QPixmap(path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            rounded = get_rounded_pixmap(pixmap, radius=12, size=180)
+            label.setPixmap(rounded)
+
+            # label.setPixmap(pixmap)
+            label.setFixedSize(180, 180)
+            layout.addWidget(label)
+
 class PlaceCard(QFrame):
     def __init__(self, place):
         super().__init__()
@@ -97,19 +126,39 @@ class PlaceCard(QFrame):
         """)
         self.init_ui(place)
 
+    def show_image_grid(self, image_paths):
+        dialog = ImageGridDialog(image_paths, self)
+        dialog.exec_()
+
     def init_ui(self, place):
         layout = QHBoxLayout()
-        image_label = QLabel()
+        image_label = ClickableLabel()
         image_label.setStyleSheet("""
             QFrame{
                 padding: 0px;
             }
         """)
+        image_label.setFixedSize(120, 120)
         pixmap = QPixmap(place["image"])
         if not pixmap.isNull():
             rounded = get_rounded_pixmap(pixmap, radius=12, size=120)
             image_label.setPixmap(rounded)
-        image_label.setFixedSize(120, 120)
+
+        region = place["address"].split()[0]  # 예: 서울
+        name = place["name"]
+        print(f'region = {region}, name = {name}')        
+        image_paths = [
+            f'downloaded_images\\{region} {name} 음식사진_0.jpg',
+            f'downloaded_images\\{region} {name} 음식사진_1.jpg',
+            f'downloaded_images\\{region} {name} 음식사진_2.jpg'
+        ]
+
+        image_label.clicked.connect(lambda: self.show_image_grid(image_paths))
+        # pixmap = QPixmap(place["image"])
+        # if not pixmap.isNull():
+        #     rounded = get_rounded_pixmap(pixmap, radius=12, size=120)
+        #     image_label.setPixmap(rounded)
+        # image_label.setFixedSize(120, 120)
         layout.addWidget(image_label)
 
         text_layout = QVBoxLayout()
@@ -262,40 +311,40 @@ def execute(data_lst):
 if __name__ == "__main__":
     test_data = [
         {
-            "name": "삼겹살천국",
-            "address": "서울특별시 강남구 테헤란로 123",
+            "name": "경주십원빵 대릉원",
+            "address": "경주 강남구 테헤란로 123",
             "url": "https://place.map.kakao.com/12345678",
             "category": "한식 > 고기집",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
             "phone" : "010-1234-5678"
         },
         {
-            "name": "명동돈까스",
-            "address": "서울특별시 중구 명동길 9",
+            "name": "교동집밥 경주황리단길점",
+            "address": "경주 중구 명동길 9",
             "url": "https://place.map.kakao.com/23456789",
             "category": "일식 > 돈까스",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
             "phone" : "010-1234-5678"
         },
         {
-            "name": "초밥이야기",
-            "address": "부산광역시 해운대구 해운대로 456",
+            "name": "길한우",
+            "address": "경주 해운대구 해운대로 456",
             "url": "https://place.map.kakao.com/34567890",
             "category": "일식 > 초밥",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
             "phone" : "010-1234-5678"
         },
         {
-            "name": "라면대통령",
-            "address": "대전광역시 유성구 대학로 99",
+            "name": "면타작",
+            "address": "경주 유성구 대학로 99",
             "url": "https://place.map.kakao.com/45678901",
             "category": "일식 > 라멘",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
             "phone" : "010-1234-5678"
         },
         {
-            "name": "홍콩반점",
-            "address": "인천광역시 남동구 예술로 21",
+            "name": "뽀빠이짜장",
+            "address": "경주 남동구 예술로 21",
             "url": "https://place.map.kakao.com/56789012",
             "category": "중식 > 중화요리",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
