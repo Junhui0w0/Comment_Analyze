@@ -8,10 +8,12 @@ from PyQt5.QtGui import *
 
 from PIL import Image, ImageTk
 
-# from func.func_get_image import download_images
-from func_get_image import download_images
+from func.func_get_image import download_images
+# from func_get_image import download_images
 
 import webbrowser
+
+cur_region = ''
 
 with open("api\\api_kakao.txt", 'r', encoding='utf-8') as f:
     API_KAKAO = f.readline()
@@ -144,13 +146,12 @@ class PlaceCard(QFrame):
             rounded = get_rounded_pixmap(pixmap, radius=12, size=120)
             image_label.setPixmap(rounded)
 
-        region = place["address"].split()[0]  # 예: 서울
         name = place["name"]
-        print(f'region = {region}, name = {name}')        
+        print(f'region = {cur_region}, name = {name}')        
         image_paths = [
-            f'downloaded_images\\{region} {name} 음식사진_0.jpg',
-            f'downloaded_images\\{region} {name} 음식사진_1.jpg',
-            f'downloaded_images\\{region} {name} 음식사진_2.jpg'
+            f'downloaded_images\\{cur_region} {name} 음식사진_0.jpg',
+            f'downloaded_images\\{cur_region} {name} 음식사진_1.jpg',
+            f'downloaded_images\\{cur_region} {name} 음식사진_2.jpg'
         ]
 
         image_label.clicked.connect(lambda: self.show_image_grid(image_paths))
@@ -309,6 +310,7 @@ def execute(data_lst):
 
 
 if __name__ == "__main__":
+    cur_region = '경주'
     test_data = [
         {
             "name": "경주십원빵 대릉원",
