@@ -4,6 +4,7 @@ import re
 from func.func_kakao_navi import classify_place_kakao
 from func.func_get_image import download_images
 from func.func_kakao_search_info import fetch_place_info, execute
+import func.func_kakao_search_info
 
 # 초기 값 설정
 video_title = ''
@@ -28,6 +29,7 @@ region_keywords = [
 def get_region(title):
     for reg in region_keywords:
         if reg in title:
+            func.func_kakao_search_info.cur_region = reg
             return reg
     return ''
 
