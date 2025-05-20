@@ -189,7 +189,11 @@ class VideoWidget(QWidget):
             Qt.SmoothTransformation
         ))
 
-        self.img_label.setStyleSheet("border-radius: 6px;border: 1px solid #222;")
+        # self.img_label.setStyleSheet("border-radius: 6px;border: 1px solid #222;") #여기임
+        self.img_label.setStyleSheet("""
+            ClickableLabel{border-radius: 6px;border: 1px solid #222;}
+            ClickableLabel:hover{background:#ADB6FF;} """)
+        
         self.img_label.clicked.connect(self.toggle_selection)
 
         content_layout = QVBoxLayout()
@@ -237,7 +241,9 @@ class VideoWidget(QWidget):
             self.selected = True
             parent_app.add_to_selected(self)
         else: #선택 해제했을 때
-            self.img_label.setStyleSheet("border-radius: 6px;border: 1px solid #222;")
+            self.img_label.setStyleSheet("""
+                ClickableLabel{border-radius: 6px;border: 1px solid #222;}
+                ClickableLabel:hover{background:#ADB6FF;} """)
             self.selected = False
             parent_app.remove_from_selected(self)
 
@@ -305,7 +311,7 @@ class YouTubeSearchApp(QMainWindow):
         search_bar_layout = QHBoxLayout()
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search YouTube...")
+        self.search_input.setPlaceholderText("검색 할 내용을 입력해주세요.")
         self.search_input.setStyleSheet("""
     QLineEdit {
         border: 2px solid #ccc;
@@ -380,7 +386,6 @@ class YouTubeSearchApp(QMainWindow):
 
 
     def display_results(self, video_list):
-        # 🔹 이전 검색 결과 제거
         for i in reversed(range(self.results_layout.count())):
             widget_to_remove = self.results_layout.itemAt(i).widget()
             if widget_to_remove:
@@ -391,7 +396,7 @@ class YouTubeSearchApp(QMainWindow):
             video_widget = VideoWidget(snippet)
             self.results_layout.addWidget(video_widget)
 
-        self.loading_overlay.hide()  # 🔹 로딩 숨기기
+        self.loading_overlay.hide()
 
     def search_videos(self):
         query = self.search_input.text().strip()
@@ -400,7 +405,7 @@ class YouTubeSearchApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please enter a search term!")
             return
 
-        self.loading_overlay.show()  # 🔹 로딩 표시
+        self.loading_overlay.show()
         QApplication.processEvents()
 
         self.worker = SearchWorker(query, YOUTUBE_API_KEY)
