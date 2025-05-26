@@ -27,5 +27,10 @@ def download_images(query, num_images, output_name):
             with open(f'downloaded_images\\{query}_{i}.jpg', 'wb') as file:
                 file.write(response.content)
 
-# # 테스트
-# download_images('부산 신발원 가게 외부사진', 1, '가게')
+        elif output_name == '명소':
+            with open(f'downloaded_images\\{query}_{i}.jpg', 'wb') as file:
+                file.write(response.content)
+
+if __name__ == '__main__':
+    # download_images(f'{region} {name} 가게 외부사진', 1, '가게')
+    download_images('부산 해운대', 3, '명소')
