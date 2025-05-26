@@ -8,8 +8,10 @@ from PyQt5.QtGui import *
 
 from PIL import Image, ImageTk
 
-from func.func_get_image import download_images
-# from func_get_image import download_images
+try:
+    from func.func_get_image import download_images  # main에서 실행 시
+except ImportError:
+    from func_get_image import download_images       # 단독 실행 시
 
 import webbrowser
 
@@ -38,32 +40,44 @@ with open("api\\api_kakao.txt", 'r', encoding='utf-8') as f:
     
 #     return None
 
-def fetch_place_info(place_name, region):
-    headers = {"Authorization": f'KakaoAK {API_KAKAO}'}
-    params = {"query": place_name}
-    res = requests.get("https://dapi.kakao.com/v2/local/search/keyword.json", headers=headers, params=params)
-    data = res.json()
+def fetch_place_info(place_name, region, category):
+    if category == '맛집':
 
-    if data['documents']:
-        place = data['documents'][0]
+        headers = {"Authorization": f'KakaoAK {API_KAKAO}'}
+        params = {"query": place_name}
+        res = requests.get("https://dapi.kakao.com/v2/local/search/keyword.json", headers=headers, params=params)
+        data = res.json()
 
-        #가게명 추출 후 이미지 다운
-        name = place['place_name']
-        download_images(f'{region} {name} 가게 외부사진', 1, '가게')
-        download_images(f'{region} {name} 음식사진', 3, '음식')
+        if data['documents']:
+            place = data['documents'][0]
+
+            #가게명 추출 후 이미지 다운
+            name = place['place_name']
+            download_images(f'{region} {name} 가게 외부사진', 1, '가게')
+            download_images(f'{region} {name} 음식사진', 3, '음식')
 
 
-        return {
-            "name": place['place_name'],
-            "address": place['road_address_name'],
-            "url": place['place_url'],
-            "category": place['category_name'],
-            "image" : f'downloaded_images\\{region} {name} 가게 외부사진.jpg',
-            "phone" : place.get("phone", "없음"),
-            # "x": place['x'], "y": place['y']
-        }
+            return {
+                "name": place['place_name'],
+                "address": place['road_address_name'],
+                "url": place['place_url'],
+                "category": place['category_name'],
+                "image" : f'downloaded_images\\{region} {name} 가게 외부사진.jpg',
+                "phone" : place.get("phone", "없음"),
+                # "x": place['x'], "y": place['y']
+            }
+        
+        return None
     
-    return None
+    elif category == '명소':
+        download_images(f'{place_name}', 3, '명소')
+
+        return{
+            "name":f"{place_name}",
+            "image_1":f"downloaded_images\\{place_name}_0.jpg",
+            "image_2":f"downloaded_images\\{place_name}_1.jpg",
+            "image_3":f"downloaded_images\\{place_name}_2.jpg"
+        }
 
 def get_rounded_pixmap(pixmap, radius, size): #이미지 둥글게
     pixmap = pixmap.scaled(size, size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
@@ -196,6 +210,49 @@ class PlaceCard(QFrame):
         layout.addLayout(text_layout)
         self.setLayout(layout)
 
+class MyeongsoCard(QFrame):
+    def __init__(self, place):
+        super().__init__()
+        self.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 12px;
+                border: 1px solid #ccc;
+                padding: 10px;
+            }
+        """)
+        self.init_ui(place)
+
+    def init_ui(self, place):
+        # 전체 수직 레이아웃
+        layout = QVBoxLayout()
+
+        # 1. 텍스트 라벨 (명소 이름)
+        label = QLabel(f"명소이름: {place['name']}")
+        label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet("font-size: 15px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(label)
+
+        # 2. 이미지 수평 레이아웃
+        image_layout = QHBoxLayout()
+        image_layout.setSpacing(10)
+
+        for key in ["image_1", "image_2", "image_3"]:
+            image_label = QLabel()
+            image_label.setFixedSize(120, 120)
+            image_label.setStyleSheet("padding: 0px;")
+
+            pixmap = QPixmap(place[key])
+            if not pixmap.isNull():
+                rounded = get_rounded_pixmap(pixmap, radius=12, size=120)
+                image_label.setPixmap(rounded)
+
+            image_layout.addWidget(image_label)
+
+        layout.addLayout(image_layout)
+        self.setLayout(layout)
+
+
 class PlaceListWindow(QDialog):
     def __init__(self, place_list, parent=None):
         super().__init__(parent)
@@ -274,12 +331,22 @@ class PlaceListWindow(QDialog):
             }
         """)
 
+        self.myeongso_lst = []
         container = QWidget()
         vbox = QVBoxLayout(container)
         for place in self.place_list:
-            card = PlaceCard(place)
+            if 'image_1' not in place:
+                card = PlaceCard(place)
+                vbox.addWidget(card)
+                vbox.addSpacing(10)
+            else:
+                self.myeongso_lst.append(place)                
+        
+        for myeongso in self.myeongso_lst:
+            card = MyeongsoCard(myeongso)
             vbox.addWidget(card)
             vbox.addSpacing(10)
+
         vbox.addStretch()
         scroll.setWidget(container)
 
@@ -300,7 +367,7 @@ class PlaceListWindow(QDialog):
             self.move(event.globalPos() - self.offset)
 
     def mouseReleaseEvent(self, event):
-        self.offset = None
+        self.offset = None  
 
 
 def execute(data_lst):
@@ -351,6 +418,13 @@ if __name__ == "__main__":
             "category": "중식 > 중화요리",
             "image": "downloaded_images\\경주 경주십원빵 대릉원 가게 외부사진.jpg",
             "phone" : "010-1234-5678"
+        },
+
+        {
+            "name":"해운대",
+            "image_1":"downloaded_images\\부산 해운대_0.jpg",
+            "image_2":"downloaded_images\\부산 해운대_1.jpg",
+            "image_3":"downloaded_images\\부산 해운대_2.jpg"
         }
     ]
         
