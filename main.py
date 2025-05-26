@@ -13,49 +13,49 @@ import func.func_openchat_chat
 
 file_path = ''
 
-# YouTube API Key
+# YouTube API Key - 유튜브 댓글 추출에 필요한 API 키 읽어오기
 with open("api\\api_key.txt", "r") as f:
     YOUTUBE_API_KEY = f.read()
 
 def get_filename():
     return file_path
     
-class LoadingOverlay(QWidget):
+class LoadingOverlay(QWidget): #Loading GIF 출력하는 Class
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setStyleSheet("background-color: rgba(255, 255, 255, 180);")
-        self.setFixedSize(parent.size())
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        super().__init__(parent) #파라미터로 parent 입력되면 상속
+        self.setAttribute(Qt.WA_StyledBackground, True) #setStyleSheet("background-color: ...") 사용 가능
+        self.setStyleSheet("background-color: rgba(255, 255, 255, 180);") #배경색상 -> 흰색 / 투명도 180
+        self.setFixedSize(parent.size()) #parent size 상속
+        self.setAttribute(Qt.WA_TransparentForMouseEvents) #loading gif을 적용되는 위젯이 마우스 이벤트 무시하게 됨
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(Qt.AlignCenter) #중앙 정렬
 
-        gif_path = "ui\\loading.gif"
-        self.label = QLabel()
-        self.movie = QMovie(gif_path)
+        gif_path = "ui\\loading.gif" #gif 경로 
+        self.label = QLabel() #QLabel -> 화면에 출력
+        self.movie = QMovie(gif_path) #QMovie -> 움직이는 데이터만 처리
 
-        if not self.movie.isValid():
+        if not self.movie.isValid(): #예외 디버깅
             print("⚠️ loading.gif 로딩 실패:", gif_path)
 
-        self.label.setMovie(self.movie)
+        self.label.setMovie(self.movie) #라벨에 movie 적용 -> 움직이는 물체를 화면에 출력해주기 위함
         self.movie.start()
 
         layout.addWidget(self.label)
         self.setLayout(layout)
-        self.hide()
+        self.hide() #-> 특정 이벤트가 수행될 때 마다 GIF 출력 (기본값은 hide)
 
-    def show(self):
+    def show(self): #특정 이벤트 수행될 때 gif 출력
         self.movie.start()
-        self.raise_()
+        self.raise_() #최상단 위치 -> 다른 위젯에 가리지 않게
         super().show()
 
     def hide(self):
         self.movie.stop()
         super().hide()
 
-class AnalyzeWorker(QThread):
-    finished = pyqtSignal(list)   # 분석 결과를 emit
+class AnalyzeWorker(QThread):#Anaylze 버튼을 눌렀을 때 수행
+    finished = pyqtSignal(list) 
     error = pyqtSignal(str)
 
     def __init__(self, selected_videos):
@@ -65,17 +65,17 @@ class AnalyzeWorker(QThread):
     def run(self):
         try:
             all_results = []
-            for video_widget in self.selected_videos:
+            for video_widget in self.selected_videos: #내가 선택한 video
                 video_data = video_widget.video_data
                 video_id = video_data.get('videoId')
                 if not video_id:
                     continue
-                comments = get_top_comments(video_id, top_n=100)
-                func.func_openchat_chat.video_title = video_data.get('title', 'No Title')
-                file_path = output_by_txt(video_id, comments, video_data.get('title', 'No Title'))
+                comments = get_top_comments(video_id, top_n=100) #선택한 영상에서 댓글 추출
+                func.func_openchat_chat.video_title = video_data.get('title', 'No Title') 
+                file_path = output_by_txt(video_id, comments, video_data.get('title', 'No Title')) #추출한 댓글(str) -> txt 파일로 변환
 
-                result_data = func.func_openchat_chat.summary_comments(file_path)
-                if isinstance(result_data, list):  # 안전성 확보
+                result_data = func.func_openchat_chat.summary_comments(file_path) #댓글 내용 기반으로 AI 요약 -> 맛집, 명소, 팁 추출
+                if isinstance(result_data, list):  # 안전성 확보 -> 만약 result_data의 데이터 타입이 list가 아니면 잘못된 것
                     all_results.extend(result_data)
 
             self.finished.emit(all_results)
@@ -83,12 +83,12 @@ class AnalyzeWorker(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
-class SearchWorker(QThread):
+class SearchWorker(QThread): #검색란에 영상 제목 검색 후 수행할 클래스
     search_completed = pyqtSignal(list)  # 리스트 형태로 비디오 데이터 emit
 
     def __init__(self, query, api_key):
         super().__init__()
-        self.query = query
+        self.query = query #내가 입력한 영상 제목(쿼리)
         self.api_key = api_key
 
     def run(self):
@@ -99,7 +99,7 @@ class SearchWorker(QThread):
                 'q': self.query,
                 'key': self.api_key,
                 'type': 'video',
-                'maxResults': 15
+                'maxResults': 15 #출력할 유튜브 영상의 최대 갯수
             }
 
             response = requests.get(url, params=params)
@@ -145,7 +145,7 @@ class SearchWorker(QThread):
             self.search_completed.emit([])
 
 
-class ClickableLabel(QLabel):
+class ClickableLabel(QLabel): #클릭기능이 추가된 QLabel 구현
     clicked = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -154,7 +154,7 @@ class ClickableLabel(QLabel):
     def mousePressEvent(self, event):
         self.clicked.emit()
 
-class VideoWidget(QWidget):
+class VideoWidget(QWidget): #영상 제목 검색 후 출력되는 정보 -> 썸네일, 영상제목, 영상 설명, 댓글 수
     def __init__(self, video_data, parent=None):
         super().__init__(parent)
         self.video_data = video_data or {}
@@ -164,11 +164,11 @@ class VideoWidget(QWidget):
     def initUI(self):
         layout = QHBoxLayout()
 
-        thumbnails = self.video_data.get('thumbnails', {})
-        medium_thumb = thumbnails.get('medium', {})
+        thumbnails = self.video_data.get('thumbnails', {}) #썸네일
+        medium_thumb = thumbnails.get('medium', {}) #좋아요 수
         thumbnail_url = medium_thumb.get('url', '')
 
-        self.img_label = ClickableLabel()
+        self.img_label = ClickableLabel() #썸네일은 클릭이 가능한 Label
         pixmap = QPixmap()
         if thumbnail_url:
             try:
@@ -182,32 +182,32 @@ class VideoWidget(QWidget):
 
         thumbnail_width = 240
         thumbnail_height = 160
-        self.img_label.setFixedSize(thumbnail_width, thumbnail_height)
+        self.img_label.setFixedSize(thumbnail_width, thumbnail_height) #썸네일 크기 지정
         self.img_label.setPixmap(pixmap.scaled(
             thumbnail_width, thumbnail_height,
             Qt.IgnoreAspectRatio,
             Qt.SmoothTransformation
         ))
 
-        # self.img_label.setStyleSheet("border-radius: 6px;border: 1px solid #222;") #여기임
+        # self.img_label.setStyleSheet("border-radius: 6px;border: 1px solid #222;")
         self.img_label.setStyleSheet("""
             ClickableLabel{border-radius: 6px;border: 1px solid #222;}
-            ClickableLabel:hover{background:#ADB6FF;} """)
+            ClickableLabel:hover{background:#ADB6FF;} """) #UI 효과
         
-        self.img_label.clicked.connect(self.toggle_selection)
+        self.img_label.clicked.connect(self.toggle_selection) #클릭 이벤트 연결
 
         content_layout = QVBoxLayout()
 
-        self.title_label = QLabel(self.video_data.get('title', 'No Title'))
+        self.title_label = QLabel(self.video_data.get('title', 'No Title')) #제목 추출
         self.title_label.setWordWrap(True)
         self.title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #202020;")
 
-        comment_count = self.video_data.get("commentCount", "알 수 없음")
+        comment_count = self.video_data.get("commentCount", "알 수 없음") #댓글 수 추출
 
         channel = QLabel(f"Channel: {self.video_data.get('channelTitle', 'Unknown')} | 댓글수: {comment_count}")
         channel.setStyleSheet("color: #707070; font-size: 12px;")
 
-        description = QLabel(self.video_data.get('description', 'No Description')[:100] + "...")
+        description = QLabel(self.video_data.get('description', 'No Description')[:100] + "...") #영상 설명 추출
         description.setWordWrap(True)
         description.setStyleSheet("color: #505050; font-size: 13px;")
 
