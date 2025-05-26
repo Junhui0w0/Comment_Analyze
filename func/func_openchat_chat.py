@@ -251,23 +251,22 @@ def summary_comments(filepath):
 
     matzip_json_data = []
 
-    # #대표 이미지 추출 (가게 정면 사진 1장, 메뉴 사진 3장)
-    # for matzip in matzip_lst:
-    #     download_images(f'{region} {matzip} 가게 외부사진', 1, '가게')
-    #     download_images(f'{region} {matzip} 음식사진', 3, '음식')
-
-    #     data = fetch_place_info(f'{region} {matzip}', f'downloaded_images\\{region} {matzip} 가게 외부사진.jpg')
-    #     matzip_json_data.append(data)
-
-    # show_res(matzip_json_data)
-
     url_set = set()
     for matzip in matzip_lst:
-        data = fetch_place_info(f'{region} {matzip}', region)
+        data = fetch_place_info(f'{region} {matzip}', region, '맛집')
         if data["url"] in url_set:
             continue
         
         url_set.add(data["url"])
+        matzip_json_data.append(data)
+
+    myeongso_set = set()
+    for myeongso in myeongso_lst:
+        if myeongso in myeongso_set:
+            continue
+
+        myeongso_set.add(myeongso)
+        data = fetch_place_info(f'{region} {myeongso}', region, '명소')
         matzip_json_data.append(data)
 
     # execute(matzip_json_data)
