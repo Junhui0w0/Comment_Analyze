@@ -176,9 +176,9 @@ class VideoWidget(QWidget): #영상 제목 검색 후 출력되는 정보 -> 썸
                 pixmap.loadFromData(image_data)
             except Exception as e:
                 print(f"썸네일 로드 실패: {e}")
-                pixmap = QPixmap("placeholder.jpg")
+                pixmap = QPixmap("exception\\placeholder.jpg")
         else:
-            pixmap = QPixmap("placeholder.jpg")
+            pixmap = QPixmap("exception\\placeholder.jpg")
 
         thumbnail_width = 240
         thumbnail_height = 160

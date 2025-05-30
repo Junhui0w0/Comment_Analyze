@@ -264,7 +264,8 @@ def summary_comments(filepath):
     for myeongso in myeongso_lst:
         if myeongso in myeongso_set:
             continue
-
+        
+        myeongso = myeongso.replace(' ', '')
         myeongso_set.add(myeongso)
         data = fetch_place_info(f'{region} {myeongso}', region, '명소')
         matzip_json_data.append(data)
