@@ -1,5 +1,6 @@
 import requests
 import sys
+import json
 from io import BytesIO
 
 from PyQt5.QtWidgets import *
@@ -93,6 +94,53 @@ def get_rounded_pixmap(pixmap, radius, size): #이미지 둥글게
     painter.end()
 
     return rounded
+
+class ChatbotStreamWorker(QThread):
+    new_text = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, question):
+        super().__init__()
+        self.question = question
+
+    def run(self):
+        url = "http://localhost:1234/v1/chat/completions"
+        prompt = f"""
+        당신은 여행 정보를 친절하고 자연스럽게 한국어로 전달하는 가이드입니다.
+        질문을 정확히 이해하고 한국어로 간결하게 답해주세요.
+        교통수단은 '버스', '지하철', '택시', '도보' 등으로 분류하여 알려주세요.
+        버스 노선은 최대 5개만 답해주세요.
+        각 항목은 띄어쓰기를 추가하여 가시성을 높여주세요.
+        
+        사용자질문: {self.question}
+
+        답변: 
+        """
+        payload = {
+            "model": "llama-3.1-8b-instruct",
+            "messages": [
+                {"role": "system", "content": "당신은 여행 정보를 친절하고 자연스럽게 소개하는 한국어 작가입니다."},
+                {"role": "user", "content": prompt.strip()}
+            ],
+            "stream": True,
+            "temperature": 0.4,
+            "max_tokens": 400
+        }
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            response = requests.post(url, headers=headers, data=json.dumps(payload), stream=True)
+            for line in response.iter_lines():
+                if line:
+                    if line.decode("utf-8").strip() == "data: [DONE]":
+                        break
+                    data = json.loads(line.decode("utf-8").replace("data: ", ""))
+                    delta = data['choices'][0]['delta'].get('content', '')
+                    self.new_text.emit(delta)
+        except Exception as e:
+            self.new_text.emit(f"❌ 오류 발생: {str(e)}")
+
+        self.finished.emit()
 
 class ClickableLabel(QLabel):
     clicked = pyqtSignal()  # PyQt5 시그널
@@ -253,7 +301,7 @@ class MyeongsoCard(QFrame):
         self.setLayout(layout)
 
 
-class PlaceListWindow(QDialog):
+class PlaceListChatWindow(QDialog):
     def __init__(self, place_list, parent=None):
         super().__init__(parent)
         self.place_list = place_list
@@ -264,7 +312,7 @@ class PlaceListWindow(QDialog):
         self.initUI()
 
     def initUI(self):
-        self.resize(600, 850)
+        self.resize(1100, 850)
         self.setStyleSheet("background-color: transparent;")
 
         bg_frame = QFrame(self)
@@ -275,9 +323,11 @@ class PlaceListWindow(QDialog):
                 border-radius: 12px;
             }
         """)
-        bg_layout = QVBoxLayout(bg_frame)
+        bg_layout = QHBoxLayout(bg_frame)
         bg_layout.setContentsMargins(10, 10, 10, 10)
 
+        # 좌측: 맛집/명소 리스트
+        list_layout = QVBoxLayout()
         title_bar = QHBoxLayout()
         title = QLabel("🍽 맛집 리스트")
         title.setStyleSheet("font-weight: bold; font-size: 16px; padding-left: 10px;")
@@ -308,6 +358,8 @@ class PlaceListWindow(QDialog):
         title_bar.addWidget(btn_min)
         title_bar.addWidget(btn_max)
         title_bar.addWidget(btn_close)
+
+        list_layout.addLayout(title_bar)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -340,8 +392,8 @@ class PlaceListWindow(QDialog):
                 vbox.addWidget(card)
                 vbox.addSpacing(10)
             else:
-                self.myeongso_lst.append(place)                
-        
+                self.myeongso_lst.append(place)
+
         for myeongso in self.myeongso_lst:
             card = MyeongsoCard(myeongso)
             vbox.addWidget(card)
@@ -350,29 +402,97 @@ class PlaceListWindow(QDialog):
         vbox.addStretch()
         scroll.setWidget(container)
 
-        bg_layout.addLayout(title_bar)
-        bg_layout.addWidget(scroll)
+        list_layout.addWidget(scroll)
+        bg_layout.addLayout(list_layout, 3)
+
+        # 우측: 챗봇 영역
+        chatbot_frame = QFrame()
+        chatbot_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 12px;
+                border: 1px solid #ccc;
+                padding: 12px;
+            }
+        """)
+        chatbot_layout = QVBoxLayout(chatbot_frame)
+        chatbot_layout.setSpacing(10)
+
+        title_label = QLabel("💬 여행 챗봇")
+        title_label.setStyleSheet("font-weight: bold; font-size: 15px;")
+        chatbot_layout.addWidget(title_label)
+
+        self.response_box = QTextBrowser()
+        self.response_box.setPlaceholderText("질문 내용에 대한 답변")
+        self.response_box.setStyleSheet("font-size: 13px; border: 1px solid #ccc; border-radius: 6px; padding: 6px;")
+        chatbot_layout.addWidget(self.response_box, stretch=3)
+
+        self.input_box = QTextEdit()
+        self.input_box.setFixedHeight(80)
+        self.input_box.setPlaceholderText("질문 내용 작성")
+        self.input_box.setStyleSheet("font-size: 13px; border: 1px solid #ccc; border-radius: 6px; padding: 6px;")
+        chatbot_layout.addWidget(self.input_box)
+
+        self.ask_btn = QPushButton("질문하기")
+        self.ask_btn.setCursor(Qt.PointingHandCursor)
+        self.ask_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #5CA8F6;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3b92dc;
+            }
+        """)
+        self.ask_btn.clicked.connect(self.handle_chatbot)
+        chatbot_layout.addWidget(self.ask_btn, alignment=Qt.AlignRight)
+
+        bg_layout.addWidget(chatbot_frame, 2)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(bg_frame)
 
-    # 창 드래그 이동 지원
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.offset = event.globalPos() - self.frameGeometry().topLeft()
+
+    def handle_chatbot(self):
+        question = self.input_box.toPlainText().strip()
+        if not question:
+            self.response_box.setText("❗ 질문을 입력해 주세요.")
+            return
+
+        self.response_box.clear()
+        self.response_box.setText("⌛ 답변을 생성 중입니다...\n")
+        self.worker = ChatbotStreamWorker(question)
+        self.worker.new_text.connect(self.append_response_text)
+        self.worker.finished.connect(self.finish_response)
+        self.worker.start()
+
+    def append_response_text(self, text):
+        self.response_box.moveCursor(QTextCursor.End)
+        self.response_box.insertPlainText(text)
+        self.response_box.moveCursor(QTextCursor.End)
+
+    def finish_response(self):
+        self.response_box.append("\n\n✅ 답변 완료")
 
     def mouseMoveEvent(self, event):
         if self.offset and event.buttons() == Qt.LeftButton:
             self.move(event.globalPos() - self.offset)
 
     def mouseReleaseEvent(self, event):
-        self.offset = None  
+        self.offset = None
 
 
 def execute(data_lst):
-    dialog = PlaceListWindow(data_lst)
-    dialog.exec_() 
+    dialog = PlaceListChatWindow(data_lst)
+    dialog.exec_()
 
 
 
@@ -428,7 +548,12 @@ if __name__ == "__main__":
         }
     ]
         
+    # app = QApplication(sys.argv)
+    # window = PlaceListWindow(test_data)
+    # window.show()
+    # sys.exit(app.exec_())
+
     app = QApplication(sys.argv)
-    window = PlaceListWindow(test_data)
+    window = PlaceListChatWindow(test_data)
     window.show()
     sys.exit(app.exec_())
