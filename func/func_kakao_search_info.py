@@ -557,3 +557,4 @@ if __name__ == "__main__":
     window = PlaceListChatWindow(test_data)
     window.show()
     sys.exit(app.exec_())
+
